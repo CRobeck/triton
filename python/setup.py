@@ -384,6 +384,10 @@ class CMakeBuild(build_ext):
             roctracer_include_dir = os.path.join(get_base_dir(), "third_party", "amd", "backend", "include")
         cmake_args += ["-DROCTRACER_INCLUDE_DIR=" + roctracer_include_dir]
         return cmake_args
+    
+    def get_neutron_cmake_args(self):
+        cmake_args = self.get_pybind11_cmake_args()
+        return cmake_args
 
     def build_extension(self, ext):
         lit_dir = shutil.which('lit')
@@ -458,6 +462,11 @@ class CMakeBuild(build_ext):
             cmake_args += self.get_proton_cmake_args()
         else:
             cmake_args += ["-DTRITON_BUILD_PROTON=OFF"]
+
+        if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
+            cmake_args += self.get_neutron_cmake_args()
+        else:
+            cmake_args += ["-DTRITON_BUILD_NEUTRON", "OFF"]
 
         if is_offline_build():
             # unit test builds fetch googletests from GitHub
@@ -566,11 +575,22 @@ def add_link_to_proton():
         shutil.rmtree(proton_install_dir)
     os.symlink(proton_dir, proton_install_dir)
 
+def add_link_to_neutron():
+    neutron_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "third_party", "neutron", "neutron"))
+    neutron_install_dir = os.path.join(os.path.dirname(__file__), "triton", "instrumentation")
+    if os.path.islink(neutron_install_dir):
+        os.unlink(neutron_install_dir)
+    if os.path.exists(neutron_install_dir):
+        shutil.rmtree(neutron_install_dir)
+    os.symlink(neutron_dir, neutron_install_dir)    
+
 
 def add_links():
     add_link_to_backends()
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         add_link_to_proton()
+    if check_env_flag("TRITON_BUILD_NEUTRON", "OFF"):
+        add_link_to_neutron()
 
 
 class plugin_install(install):
@@ -624,6 +644,8 @@ def get_packages():
     packages += [f'triton/backends/{backend.name}' for backend in backends]
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         packages += ["triton/profiler"]
+    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
+        packages += ["triton/instrumentation"]
     return packages
 
 
@@ -634,6 +656,10 @@ def get_entry_points():
             "proton-viewer = triton.profiler.viewer:main",
             "proton = triton.profiler.proton:main",
         ]
+    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
+        entry_points["console_scripts"] = [
+            "neutron = triton.instrumentation.neutron:main",
+            ]
     return entry_points
 
 
