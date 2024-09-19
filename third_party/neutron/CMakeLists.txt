@@ -2,7 +2,7 @@ project(Neutron CXX)
 
 set(NEUTRON_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/csrc)
 file(GLOB_RECURSE NEUTRON_SRC ${NEUTRON_SRC_DIR}/lib/*.cpp)
-add_library(proton SHARED ${NEUTRON_SRC} ${NEUTRON_SRC_DIR}/${PROJECT_NAME}.cpp)
+add_library(neutron SHARED ${NEUTRON_SRC} ${NEUTRON_SRC_DIR}/${PROJECT_NAME}.cpp)
 
 include_directories(${NEUTRON_SRC_DIR}/include)
 
@@ -27,6 +27,6 @@ if(APPLE)
   set(NEUTRON_PYTHON_LDFLAGS "-undefined dynamic_lookup")
 endif()
 
-target_compile_definitions(proton PRIVATE __HIP_PLATFORM_AMD__)
+target_compile_definitions(neutron PRIVATE __HIP_PLATFORM_AMD__)
 
-target_link_libraries(proton PRIVATE ${Python_LIBRARIES} ${NEUTRON_PYTHON_LDFLAGS})
+target_link_libraries(neutron PRIVATE ${Python_LIBRARIES} ${NEUTRON_PYTHON_LDFLAGS})

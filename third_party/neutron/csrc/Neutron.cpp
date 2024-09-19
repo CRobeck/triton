@@ -1,4 +1,4 @@
-//#include "Proton.h"
+#include "Neutron.h"
 
 #include <map>
 #include <stdexcept>
@@ -14,11 +14,11 @@ void initNeutron(pybind11::module &&m) {
   using namespace pybind11::literals;
 
   m.def("start", [](size_t sessionId) {
-//    SessionManager::instance().activateSession(sessionId);
+    SessionManager::instance().activateSession(sessionId);
   });
 
   m.def("finalize", [](size_t sessionId) {
- //   SessionManager::instance().deactivateSession(sessionId);
+    SessionManager::instance().deactivateSession(sessionId);
   });
 }
 
