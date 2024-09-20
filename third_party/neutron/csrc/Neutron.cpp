@@ -13,13 +13,14 @@ void initNeutron(pybind11::module &&m) {
   using ret = pybind11::return_value_policy;
   using namespace pybind11::literals;
 
-  m.def("start", [](size_t sessionId) {
+  m.def("activate", [](size_t sessionId) {
     SessionManager::instance().activateSession(sessionId);
   });
 
-  m.def("finalize", [](size_t sessionId) {
+  m.def("deactivate", [](size_t sessionId) {
     SessionManager::instance().deactivateSession(sessionId);
-  });
+  });  
+
 }
 
 PYBIND11_MODULE(libneutron, m) {

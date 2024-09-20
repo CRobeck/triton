@@ -577,7 +577,7 @@ def add_link_to_proton():
 
 def add_link_to_neutron():
     neutron_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, "third_party", "neutron", "neutron"))
-    neutron_install_dir = os.path.join(os.path.dirname(__file__), "triton", "instrumentation")
+    neutron_install_dir = os.path.join(os.path.dirname(__file__), "triton", "instrument")
     if os.path.islink(neutron_install_dir):
         os.unlink(neutron_install_dir)
     if os.path.exists(neutron_install_dir):
@@ -589,7 +589,7 @@ def add_links():
     add_link_to_backends()
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         add_link_to_proton()
-    if check_env_flag("TRITON_BUILD_NEUTRON", "OFF"):
+    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
         add_link_to_neutron()
 
 
@@ -645,7 +645,7 @@ def get_packages():
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         packages += ["triton/profiler"]
     if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
-        packages += ["triton/instrumentation"]
+        packages += ["triton/instrument"]
     return packages
 
 
@@ -658,7 +658,7 @@ def get_entry_points():
         ]
     if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
         entry_points["console_scripts"] = [
-            "neutron = triton.instrumentation.neutron:main",
+            "neutron = triton.instrument.neutron:main",
             ]
     return entry_points
 
