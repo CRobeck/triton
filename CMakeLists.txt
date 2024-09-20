@@ -25,6 +25,7 @@ endif()
 option(TRITON_BUILD_TUTORIALS "Build C++ Triton tutorials" ON)
 option(TRITON_BUILD_PYTHON_MODULE "Build Python Triton bindings" OFF)
 option(TRITON_BUILD_PROTON "Build the Triton Proton profiler" ON)
+option(TRTON_BUILD_NEUTRON "Build the Triton instrumentation tool" ON)
 option(TRITON_BUILD_UT "Build C++ Triton Unit Tests" ON)
 set(TRITON_CODEGEN_BACKENDS "" CACHE STRING "Enable different codegen backends")
 
@@ -181,6 +182,10 @@ if(TRITON_BUILD_PYTHON_MODULE)
 
   if (TRITON_BUILD_PROTON)
     add_subdirectory(third_party/proton)
+  endif()
+
+  if(TRITON_BUILD_NEUTRON)
+	  add_subdirectory(third_party/neutron)
   endif()
 
   get_property(triton_libs GLOBAL PROPERTY TRITON_LIBS)

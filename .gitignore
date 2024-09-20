@@ -20,6 +20,9 @@ python/triton/backends/
 # Proton
 python/triton/profiler
 
+# Neutron
+ python/triton/instrument
+
 # Python caches
 __pycache__/
 *.py[cod]
