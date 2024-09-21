@@ -461,13 +461,14 @@ class CMakeBuild(build_ext):
 
         if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
             cmake_args += self.get_proton_cmake_args()
+            cmake_args += self.get_neutron_cmake_args()
         else:
             cmake_args += ["-DTRITON_BUILD_PROTON=OFF"]
 
-        if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
-            cmake_args += self.get_neutron_cmake_args()
-        else:
-            cmake_args += ["-DTRITON_BUILD_NEUTRON=OFF"]
+#        if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
+#            cmake_args += self.get_neutron_cmake_args()
+#        else:
+#            cmake_args += ["-DTRITON_BUILD_NEUTRON=OFF"]
 
         if is_offline_build():
             # unit test builds fetch googletests from GitHub
@@ -589,8 +590,9 @@ def add_links():
     add_link_to_backends()
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         add_link_to_proton()
-    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
         add_link_to_neutron()
+#    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
+#        add_link_to_neutron()
 
 
 class plugin_install(install):
@@ -644,8 +646,8 @@ def get_packages():
     packages += [f'triton/backends/{backend.name}' for backend in backends]
     if check_env_flag("TRITON_BUILD_PROTON", "ON"):  # Default ON
         packages += ["triton/profiler"]
-    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
         packages += ["triton/instrument"]
+#    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
     return packages
 
 
@@ -657,13 +659,14 @@ def get_entry_points():
             entry_points["console_scripts"],
             "proton-viewer = triton.profiler.viewer:main",
             "proton = triton.profiler.proton:main",
+            "neutron = triton.instrument.neutron:main",
         ]
-    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
-        entry_points["console_scripts"] = [
-                entry_points["console_scripts"],
-                "neutron = triton.instrument.neutron:main",
-        ]
-    return entry_points
+#    if check_env_flag("TRITON_BUILD_NEUTRON", "ON"):
+#        entry_points["console_scripts"] = [
+#                entry_points["console_scripts"],
+#                "neutron = triton.instrument.neutron:main",
+#        ]
+#    return entry_points
 
 
 setup(
