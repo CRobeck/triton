@@ -3,6 +3,7 @@
 
 #include <map>
 #include <stdexcept>
+#include <iostream>
 
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"

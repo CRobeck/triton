@@ -1,4 +1,5 @@
 build/
-neutron.egg-info
-neutron/_C/libneutron.so
+proton.egg-info
+proton/_C/libproton.so
 
+*.hatchet

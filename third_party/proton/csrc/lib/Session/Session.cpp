@@ -1,3 +1,4 @@
+#include <iostream>
 #include "Session/Session.h"
 #include "Context/Python.h"
 #include "Context/Shadow.h"
@@ -40,12 +41,14 @@ makeContextSource(const std::string &contextSourceName) {
 } // namespace
 
 void Session::activate() {
+  std::cout << "Activated" << std::endl;	
   profiler->start();
   profiler->flush();
   profiler->registerData(data.get());
 }
 
 void Session::deactivate() {
+  std::cout << "Activated" << std::endl;
   profiler->flush();
   profiler->unregisterData(data.get());
 }
@@ -67,16 +70,19 @@ std::unique_ptr<Session> SessionManager::makeSession(
 }
 
 void SessionManager::activateSession(size_t sessionId) {
+  std::cout << "activateSession" << std::endl;
   std::unique_lock<std::shared_mutex> lock(mutex);
   activateSessionImpl(sessionId);
 }
 
 void SessionManager::deactivateSession(size_t sessionId) {
+  std::cout << "deactivateSession" << std::endl;
   std::unique_lock<std::shared_mutex> lock(mutex);
   deActivateSessionImpl(sessionId);
 }
 
 void SessionManager::activateSessionImpl(size_t sessionId) {
+  std::cout << "activateSessionImpl" << std::endl;
   if (activeSessions[sessionId])
     return;
   activeSessions[sessionId] = true;
@@ -86,6 +92,7 @@ void SessionManager::activateSessionImpl(size_t sessionId) {
 }
 
 void SessionManager::deActivateSessionImpl(size_t sessionId) {
+  std::cout << "deActivateSessionImpl" << std::endl;
   if (!activeSessions[sessionId]) {
     return;
   }
