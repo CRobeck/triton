@@ -12,7 +12,8 @@
 
 // The list of paths to search for the HIP runtime library. The caller Python
 // code should substitute the search path placeholder.
-static const char *hipLibSearchPaths[] = {"/*py_libhip_search_path*/"};
+//static const char *hipLibSearchPaths[] = {"/*py_libhip_search_path*/"};
+static const char *hipLibSearchPaths[] = {"/opt/rocm-6.2.0/lib/asan/"};
 
 // The list of HIP dynamic library symbols and their signature we are interested
 // in this file.

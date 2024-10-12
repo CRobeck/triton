@@ -54,12 +54,16 @@ class HIPOptions:
     instruction_sched_variant: str = 'default'
 
     def __post_init__(self):
-        default_libdir = Path(__file__).parent / 'lib'
+#        default_libdir = Path(__file__).parent / 'lib'
+#        default_libdir = Path(__file__).parent / 'lib/llvm/lib/clang/18/lib/amdgcn/bitcode/'
+#        default_libdir = "/opt/rocm-6.2.0/lib/llvm/lib/clang/18/lib/amdgcn/bitcode/"
+        default_libdir = "/opt/rocm-6.2.0/lib/asan/"
         extern_libs = {} if self.extern_libs is None else dict(self.extern_libs)
         # Ignore user-defined warp size for gfx9
         warp_size = 32 if 'gfx10' in self.arch or 'gfx11' in self.arch else 64
         object.__setattr__(self, 'warp_size', warp_size)
-        libs = ["ocml", "ockl"]
+#        libs = ["ocml", "ockl"]
+        libs = ["ocml", "ockl", "asanrtl"]
         for lib in libs:
             extern_libs[lib] = str(default_libdir / f'{lib}.bc')
         object.__setattr__(self, 'extern_libs', tuple(extern_libs.items()))
@@ -294,7 +298,7 @@ class HIPBackend(BaseBackend):
 
     @staticmethod
     def make_hsaco(src, metadata, options):
-        hsaco = amd.assemble_amdgcn(src, options.arch, '')
+        hsaco = amd.assemble_amdgcn(src, options.arch, '+xnack')
 
         rocm_path = HIPBackend.path_to_rocm_lld()
         with tempfile.NamedTemporaryFile() as tmp_out:

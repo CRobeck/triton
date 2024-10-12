@@ -347,11 +347,18 @@ void init_triton_llvm(py::module &&m) {
         // in the target machine between the MLIR and Clang generated kernels
         // and break the lowering of some target specific intrinsics.
         std::unique_ptr<TargetMachine> targetMachine = nullptr;
+//	arch += ":xnack+";
+//	arch +=":xnack+:sramecc-";
+//	features+="+xnack";
         if (!arch.empty() && pluginFile.empty())
           targetMachine =
               createTargetMachine(mod, arch, enable_fp_fusion, features);
         PassBuilder pb(/*targetMachine=*/targetMachine.get(), tuningOptions,
                        std::nullopt, instrCbPtr);
+//	errs() << features << "\n";
+//	errs() << arch << "\n";
+//	errs() << mod->getTargetTriple() << "\n";
+	
 
         if (!pluginFile.empty()) {
           // TODO: Add some logging here that we inserted a pass into the LLVM
@@ -381,20 +388,24 @@ void init_triton_llvm(py::module &&m) {
               fpm.addPass(BreakStructPhiNodesPass());
               fpm.addPass(InstCombinePass());
             });
-
-        bool enableAddressSanitizer = 
-            mlir::triton::tools::getBoolEnv("TRITON_ENABLE_ADDRESS_SANITIZER");
-        if(enableAddressSanitizer){
-                AddressSanitizerOptions Opts;
-		Opts.CompileKernel = true;
-    		for (llvm::Function &f : mod->functions()){
-        		if(f.isIntrinsic()) continue;
-        		if (f.getCallingConv() == CallingConv::AMDGPU_KERNEL)
-            		  	f.addFnAttr(llvm::Attribute::SanitizeAddress);
-    		    }	
-
-                 mpm.addPass(AddressSanitizerPass(Opts));
+	for (llvm::Function &f : mod->functions()){
+		if(f.isIntrinsic()) continue;
+		f.addFnAttr("target-features", "+xnack");
 	}
+
+        //bool enableAddressSanitizer = 
+        //    mlir::triton::tools::getBoolEnv("TRITON_ENABLE_ADDRESS_SANITIZER");
+        //if(enableAddressSanitizer){
+        //        AddressSanitizerOptions Opts;
+	//	Opts.CompileKernel = true;
+    	//	for (llvm::Function &f : mod->functions()){
+        //		if(f.isIntrinsic()) continue;
+	//		f.addFnAttr(llvm::Attribute::SanitizeAddress);
+	//		f.addFnAttr("target-features", "+xnack");
+    	//	    }	
+
+        //         mpm.addPass(AddressSanitizerPass(Opts));
+	//}
 
         mpm.addPass(pb.buildPerModuleDefaultPipeline(opt));
         mpm.run(*mod, mam);
@@ -403,7 +414,7 @@ void init_triton_llvm(py::module &&m) {
       py::arg("mod"), py::arg("opt"),
       // If we want to specify the target machine, we require additional
       // (optional) parameters
-      py::arg("arch") = "", py::arg("features") = "",
+      py::arg("arch") = "", py::arg("features") = "+xnack",
       py::arg("flags") = std::vector<std::string>{},
       py::arg("enable_fp_fusion") = false);
 

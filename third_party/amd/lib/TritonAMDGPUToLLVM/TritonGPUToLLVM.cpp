@@ -75,15 +75,23 @@ struct ConvertTritonAMDGPUToLLVM
                     mlir::ROCDL::ROCDLDialect>();
   }
 
+//  static constexpr const char *targetFeaturesName = "#llvm.target_features";
+
   void runOnOperation() override {
     MLIRContext *context = &getContext();
     ModuleOp mod = getOperation();
+
 
     AMD::TargetInfo targetInfo(this->arch.getValue());
     if (targetInfo.getISAFamily() == AMD::ISAFamily::Unknown) {
       mod.emitError("unsupported target: '") << this->arch.getValue() << "'";
       return signalPassFailure();
     }
+
+//    llvm::StringRef features = "+xnack";
+//    auto *ctx = mod.getContext();
+//    mod->setAttr(targetFeaturesName,
+//                 mlir::LLVM::TargetFeaturesAttr::get(ctx, features));    
 
     mlir::LowerToLLVMOptions option(context);
     option.overrideIndexBitwidth(32);
