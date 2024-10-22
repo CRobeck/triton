@@ -106,7 +106,7 @@ print(f'The maximum difference between torch and triton is '
     triton.testing.Benchmark(
         x_names=['size'],  # Argument names to use as an x-axis for the plot.
 #        x_vals=[2**i for i in range(12, 28, 1)],  # Different possible values for `x_name`.
-        x_vals=[2**12], 
+        x_vals=[2**12],
         x_log=True,  # x axis is logarithmic.
         line_arg='provider',  # Argument name whose value corresponds to a different line in the plot.
         line_vals=['triton', 'torch'],  # Possible values for `line_arg`.

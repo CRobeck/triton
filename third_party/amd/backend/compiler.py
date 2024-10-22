@@ -54,10 +54,10 @@ class HIPOptions:
     instruction_sched_variant: str = 'default'
 
     def __post_init__(self):
-#        default_libdir = Path(__file__).parent / 'lib'
+        default_libdir = Path(__file__).parent / 'lib'
 #        default_libdir = Path(__file__).parent / 'lib/llvm/lib/clang/18/lib/amdgcn/bitcode/'
 #        default_libdir = "/opt/rocm-6.2.0/lib/llvm/lib/clang/18/lib/amdgcn/bitcode/"
-        default_libdir = "/opt/rocm-6.2.0/lib/asan/"
+#        default_libdir = "/opt/rocm-6.2.0/lib/asan/"
         extern_libs = {} if self.extern_libs is None else dict(self.extern_libs)
         # Ignore user-defined warp size for gfx9
         warp_size = 32 if 'gfx10' in self.arch or 'gfx11' in self.arch else 64

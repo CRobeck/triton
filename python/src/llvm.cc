@@ -393,20 +393,9 @@ void init_triton_llvm(py::module &&m) {
 		f.addFnAttr("target-features", "+xnack");
 	}
 
-        //bool enableAddressSanitizer = 
-        //    mlir::triton::tools::getBoolEnv("TRITON_ENABLE_ADDRESS_SANITIZER");
-        //if(enableAddressSanitizer){
-        //        AddressSanitizerOptions Opts;
-	//	Opts.CompileKernel = true;
-    	//	for (llvm::Function &f : mod->functions()){
-        //		if(f.isIntrinsic()) continue;
-	//		f.addFnAttr(llvm::Attribute::SanitizeAddress);
-	//		f.addFnAttr("target-features", "+xnack");
-    	//	    }	
-
-        //         mpm.addPass(AddressSanitizerPass(Opts));
-	//}
-
+	AddressSanitizerOptions Opts;
+	Opts.CompileKernel = true;
+        mpm.addPass(AddressSanitizerPass(Opts));
         mpm.addPass(pb.buildPerModuleDefaultPipeline(opt));
         mpm.run(*mod, mam);
       },

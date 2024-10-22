@@ -66,8 +66,8 @@ def _get_path_to_hip_runtime_dylib():
     lib_name = "libamdhip64.so"
 
     # If we are told explicitly what HIP runtime dynamic library to use, obey that.
-#    env_libhip_path = os.getenv("TRITON_LIBHIP_PATH")
-    env_libhip_path = "/opt/rocm-6.2.0/lib/asan/"
+    env_libhip_path = os.getenv("TRITON_LIBHIP_PATH")
+#    env_libhip_path = "/opt/rocm-6.2.0/lib/asan/"
     if env_libhip_path:
         if env_libhip_path.endswith(lib_name) and os.path.exists(env_libhip_path):
             return env_libhip_path
@@ -97,8 +97,8 @@ def _get_path_to_hip_runtime_dylib():
         paths.append(path)
 
     # Then try to see if developer provides a HIP runtime dynamic library using LD_LIBARAY_PATH.
-#    env_ld_library_path = os.getenv("LD_LIBRARY_PATH")
-    env_ld_library_path = "/opt/rocm-6.2.0/lib/asan/"
+    env_ld_library_path = os.getenv("LD_LIBRARY_PATH")
+#   env_ld_library_path = "/opt/rocm-6.2.0/lib/asan/"
     if env_ld_library_path:
         for d in env_ld_library_path.split(":"):
             f = os.path.join(d, lib_name)
@@ -118,8 +118,8 @@ def _get_path_to_hip_runtime_dylib():
         paths.append(loc)
 
     # As a last resort, guess if we have it in some common installation path.
-#    common_install_path = os.path.join('/opt/rocm/lib/', lib_name)
-    common_install_path = os.path.join('/opt/rocm-6.2.0/lib/asan/', lib_name)
+    common_install_path = os.path.join('/opt/rocm/lib/', lib_name)
+#    common_install_path = os.path.join('/opt/rocm-6.2.0/lib/asan/', lib_name)
     if os.path.exists(common_install_path):
         return common_install_path
     paths.append(common_install_path)
@@ -154,13 +154,14 @@ class HIPUtils(object):
         return cls.instance
 
     def __init__(self):
-#        libhip_path = _get_path_to_hip_runtime_dylib()
-        libhip_path = "/opt/rocm-6.2.0/lib/asan/"
+        libhip_path = _get_path_to_hip_runtime_dylib()
+#        libhip_path = "/opt/rocm-6.2.0/lib/asan/"
         src = Path(os.path.join(dirname, "driver.c")).read_text()
         # Just do a simple search and replace here instead of templates or format strings.
         # This way we don't need to escape-quote C code curly brackets and we can replace
         # exactly once.
-        src = src.replace('/*py_libhip_search_path*/', "/opt/rocm-6.2.0/lib/asan/", 1)
+        src = src.replace('/*py_libhip_search_path*/', libhip_path, 1)
+#        src = src.replace('/*py_libhip_search_path*/', "/opt/rocm-6.2.0/lib/asan/", 1)
         mod = compile_module_from_src(src, "hip_utils")
         self.load_binary = mod.load_binary
         self.get_device_properties = mod.get_device_properties
@@ -235,8 +236,8 @@ def make_launcher(constants, signature, ids, warp_size):
     format = "iiiKKOOOO" + args_format
     args_list = ', ' + ', '.join(f"&_arg{i}" for i, ty in signature.items()) if len(signature) > 0 else ''
 
-#    libhip_path = _get_path_to_hip_runtime_dylib()
-    libhip_path = "/opt/rocm-6.2.0/lib/asan/"
+    libhip_path = _get_path_to_hip_runtime_dylib()
+#    libhip_path = "/opt/rocm-6.2.0/lib/asan/"
 
     # generate glue code
     params = [i for i in signature.keys() if i not in constants]
