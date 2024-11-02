@@ -77,6 +77,8 @@ public:
 
   void activateSession(size_t sesssionId);
 
+  void activateInstrumentation(size_t sesssionId);
+
   void deactivateSession(size_t sessionId);
 
   void enterScope(const Scope &scope);

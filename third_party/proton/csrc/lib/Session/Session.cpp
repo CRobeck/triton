@@ -5,6 +5,7 @@
 #include "Profiler/Cupti/CuptiProfiler.h"
 #include "Profiler/Roctracer/RoctracerProfiler.h"
 #include "Utility/String.h"
+#include <iostream>
 
 namespace proton {
 
@@ -83,6 +84,15 @@ void SessionManager::activateSession(size_t sessionId) {
   std::unique_lock<std::shared_mutex> lock(mutex);
   activateSessionImpl(sessionId);
 }
+
+void SessionManager::activateInstrumentation(size_t sessionId) {
+  std::cout << "Activated Instrumentation Session: " <<  sessionId << std::endl;  
+//  activateInstrumentationImpl(sessionId);
+}
+
+//void SessionManager::activateInstrumentationImpl(size_t sessionId) {
+//    return;
+//}
 
 void SessionManager::deactivateSession(size_t sessionId) {
   std::unique_lock<std::shared_mutex> lock(mutex);
