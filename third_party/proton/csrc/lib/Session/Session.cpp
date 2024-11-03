@@ -157,14 +157,15 @@ size_t SessionManager::addSession(const std::string &path,
 
 void SessionManager::addInstrumentationSession(){
 	std::cout << "SessionManager::addInstrumentationSession" << std::endl;
-	//We want to allocate the instrumentation device buffer here
-//  	float *src;
-//	size_t array_size = 5 * 1024 * 128 + 17;
-//  	(void)hip::deviceMalloc<true>(reinterpret_cast<void**>(&src), array_size * sizeof(float));
+	//Allocate the instrumentation device buffer here
+	void *buffer;
+	size_t buffer_size = 5 * 1024 * 128 + 17 * sizeof(float); //bytes
+	(void)hip::deviceMalloc<true>(&buffer, buffer_size);
 	return;
 }
 
 void SessionManager::finalizeInstrumentationSession(){
+	//Free the instrumentation device buffer here
         std::cout << "SessionManager::finalizeInstrumentationSession" << std::endl;
         return;
 }
