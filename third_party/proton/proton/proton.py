@@ -48,7 +48,10 @@ def execute_as_main(script, args, instrumentation_pass=None):
     if(instrumentation_pass == "print-hello"):
         instrumentation_pass_path = str(next(pathlib.Path("../../../").rglob("libGPUInstrumentationTestLib.so"), None))
         #print(instrumentation_pass_path)
+        os.environ['TRITON_ALWAYS_COMPILE'] = str(1)
+        os.environ['TRITON_DISABLE_LINE_INFO'] = str(0)       
         os.environ['LLVM_PASS_PLUGIN_PATH'] = instrumentation_pass_path
+
     # Execute in the isolated environment
     try:
         with open(script_path, 'rb') as file:
