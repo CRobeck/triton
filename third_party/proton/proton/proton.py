@@ -4,7 +4,7 @@ import os
 from glob import glob
 import pathlib
 from .profile import start, finalize, _select_backend
-from .profile import start_instrumentation
+from .profile import start_instrumentation, finalize_instrumentation
 from .flags import set_command_line
 
 
@@ -98,6 +98,8 @@ def run_instrumentation(args, target_args):
         pytest.main(script_args)
     else:
         execute_as_main(script, script_args, instrumentation_pass)
+
+    finalize_instrumentation()
 
 def main():
     args, target_args = parse_arguments()

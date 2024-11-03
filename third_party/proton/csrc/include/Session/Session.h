@@ -75,6 +75,8 @@ public:
 
   void addInstrumentationSession();
 
+  void finalizeInstrumentationSession();
+
   void finalizeSession(size_t sessionId, OutputFormat outputFormat);
 
   void finalizeAllSessions(OutputFormat outputFormat);

@@ -156,6 +156,11 @@ void SessionManager::addInstrumentationSession(){
 	return;
 }
 
+void SessionManager::finalizeInstrumentationSession(){
+        std::cout << "SessionManager::finalizeInstrumentationSession" << std::endl;
+        return;
+}
+
 void SessionManager::finalizeSession(size_t sessionId,
                                      OutputFormat outputFormat) {
   std::unique_lock<std::shared_mutex> lock(mutex);

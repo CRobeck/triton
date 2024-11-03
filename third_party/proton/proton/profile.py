@@ -98,6 +98,9 @@ def start_instrumentation():
     #set_profiling_on()
     return libproton.start_instrumentation()
 
+def finalize_instrumentation():
+    return libproton.finalize_instrumentation()
+
 def activate(session: Optional[int] = 0) -> None:
     """
     Activate the specified session.

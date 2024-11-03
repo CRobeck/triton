@@ -47,6 +47,11 @@ void initProton(pybind11::module &&m) {
     SessionManager::instance().finalizeSession(sessionId, outputFormatEnum);
   });
 
+  m.def("finalize_instrumentation", [](){
+	SessionManager::instance().finalizeInstrumentationSession();
+	return;
+	});
+
   m.def("finalize_all", [](const std::string &outputFormat) {
     auto outputFormatEnum = parseOutputFormat(outputFormat);
     SessionManager::instance().finalizeAllSessions(outputFormatEnum);

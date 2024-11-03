@@ -4,6 +4,7 @@ from .profile import (
     start,
     activate,
     start_instrumentation,
+    finalize_instrumentation,
     instrument_activate,
     deactivate,
     finalize,
