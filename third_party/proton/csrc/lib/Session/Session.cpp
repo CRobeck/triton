@@ -54,9 +54,14 @@ void throwIfSessionNotInitialized(
 } // namespace
 
 void Session::activate() {
+  std::cout << "Session::activate()" << std::endl;
   profiler->start();
   profiler->flush();
   profiler->registerData(data.get());
+}
+
+void Session::instrument_activate(){
+	std::cout << "Session::instrument_activate" << std::endl;
 }
 
 void Session::deactivate() {
@@ -144,6 +149,11 @@ size_t SessionManager::addSession(const std::string &path,
   sessions[sessionId] =
       makeSession(sessionId, path, profilerName, contextSourceName, dataName);
   return sessionId;
+}
+
+void SessionManager::addInstrumentationSession(){
+	std::cout << "SessionManager::addInstrumentationSession" << std::endl;
+	return;
 }
 
 void SessionManager::finalizeSession(size_t sessionId,

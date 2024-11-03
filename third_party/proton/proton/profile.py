@@ -85,6 +85,19 @@ def start(
     return libproton.start(name, context, data, backend)
 
 
+def start_instrumentation():
+    if is_command_line():
+        # Ignore the start() call if the script is run from the command line.
+        return
+
+    #If backend is None:
+    #    backend = _select_backend()
+
+    #_check_env(backend)
+
+    #set_profiling_on()
+    return libproton.start_instrumentation()
+
 def activate(session: Optional[int] = 0) -> None:
     """
     Activate the specified session.

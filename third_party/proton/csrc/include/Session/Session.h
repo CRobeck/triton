@@ -26,6 +26,8 @@ public:
 
   void activate();
 
+  void instrument_activate();
+
   void deactivate();
 
   void finalize(OutputFormat outputFormat);
@@ -70,6 +72,8 @@ public:
   size_t addSession(const std::string &path, const std::string &profilerName,
                     const std::string &contextSourceName,
                     const std::string &dataName);
+
+  void addInstrumentationSession();
 
   void finalizeSession(size_t sessionId, OutputFormat outputFormat);
 

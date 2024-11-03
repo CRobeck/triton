@@ -23,6 +23,13 @@ void initProton(pybind11::module &&m) {
           return sessionId;
         });
 
+  m.def("start_instrumentation",
+        []() {
+          SessionManager::instance().addInstrumentationSession();
+//          SessionManager::instance().activateInstrumentationSession(sessionId);
+          return;
+        });
+
   m.def("instrument_activate", [](size_t sessionId) {
     SessionManager::instance().activateInstrumentation(sessionId);
   });

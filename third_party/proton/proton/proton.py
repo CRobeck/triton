@@ -4,6 +4,7 @@ import os
 from glob import glob
 import pathlib
 from .profile import start, finalize, _select_backend
+from .profile import start_instrumentation
 from .flags import set_command_line
 
 
@@ -84,7 +85,11 @@ def run_profiling(args, target_args):
 #proton --instrument="mem-trace" matmul.py
 def run_instrumentation(args, target_args):
     backend = args.backend if args.backend else _select_backend()
+
+    start_instrumentation()
+    
     set_command_line()
+
     script = target_args[0]
     script_args = target_args[1:] if len(target_args) > 1 else []
     instrumentation_pass = args.instrument
