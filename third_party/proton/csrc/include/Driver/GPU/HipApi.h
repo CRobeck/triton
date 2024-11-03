@@ -11,6 +11,9 @@ namespace hip {
 template <bool CheckSuccess> hipError_t deviceSynchronize();
 
 template <bool CheckSuccess>
+hipError_t deviceMalloc(void **ptr, size_t size);
+
+template <bool CheckSuccess>
 hipError_t deviceGetAttribute(int *value, hipDeviceAttribute_t attribute,
                               int deviceId);
 

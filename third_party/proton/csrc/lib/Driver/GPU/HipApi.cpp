@@ -17,7 +17,9 @@ struct ExternLibHip : public ExternLibBase {
 
 void *ExternLibHip::lib = nullptr;
 
-DEFINE_DISPATCH(ExternLibHip, deviceSynchronize, hipDeviceSynchronize)
+DEFINE_DISPATCH(ExternLibHip, deviceSynchronize, hipDeviceSynchronize);
+
+DEFINE_DISPATCH(ExternLibHip, deviceMalloc, hipMalloc, void **, size_t);
 
 DEFINE_DISPATCH(ExternLibHip, deviceGetAttribute, hipDeviceGetAttribute, int *,
                 hipDeviceAttribute_t, int);

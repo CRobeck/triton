@@ -1,3 +1,7 @@
+#include "Driver/GPU/HipApi.h"
+#include "Driver/Dispatch.h"
+#include "hip/hip_runtime_api.h"
+
 #include "Session/Session.h"
 #include "Context/Python.h"
 #include "Context/Shadow.h"
@@ -153,6 +157,10 @@ size_t SessionManager::addSession(const std::string &path,
 
 void SessionManager::addInstrumentationSession(){
 	std::cout << "SessionManager::addInstrumentationSession" << std::endl;
+	//We want to allocate the instrumentation device buffer here
+//  	float *src;
+//	size_t array_size = 5 * 1024 * 128 + 17;
+//  	(void)hip::deviceMalloc<true>(reinterpret_cast<void**>(&src), array_size * sizeof(float));
 	return;
 }
 
