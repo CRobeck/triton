@@ -82,7 +82,6 @@ def run_profiling(args, target_args):
 
     finalize()
 
-#proton --instrument="mem-trace" matmul.py
 def run_instrumentation(args, target_args):
     backend = args.backend if args.backend else _select_backend()
 
@@ -105,7 +104,6 @@ def main():
     args, target_args = parse_arguments()
     if(args.instrument != None):
         run_instrumentation(args, target_args)
-#        print(args.instrument)
         return
     run_profiling(args, target_args)
 

@@ -26,7 +26,7 @@ public:
 
   void activate();
 
-  void instrument_activate();
+  //void instrument_activate();
 
   void deactivate();
 
@@ -83,7 +83,7 @@ public:
 
   void activateSession(size_t sesssionId);
 
-  void activateInstrumentation(size_t sesssionId);
+  //void activateInstrumentation(size_t sesssionId);
 
   void deactivateSession(size_t sessionId);
 

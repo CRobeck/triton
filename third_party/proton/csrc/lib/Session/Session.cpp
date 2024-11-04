@@ -1,6 +1,5 @@
 #include "Driver/GPU/HipApi.h"
 #include "Driver/Dispatch.h"
-#include "hip/hip_runtime_api.h"
 
 #include "Session/Session.h"
 #include "Context/Python.h"
@@ -58,14 +57,9 @@ void throwIfSessionNotInitialized(
 } // namespace
 
 void Session::activate() {
-  std::cout << "Session::activate()" << std::endl;
   profiler->start();
   profiler->flush();
   profiler->registerData(data.get());
-}
-
-void Session::instrument_activate(){
-	std::cout << "Session::instrument_activate" << std::endl;
 }
 
 void Session::deactivate() {
@@ -93,15 +87,6 @@ void SessionManager::activateSession(size_t sessionId) {
   std::unique_lock<std::shared_mutex> lock(mutex);
   activateSessionImpl(sessionId);
 }
-
-void SessionManager::activateInstrumentation(size_t sessionId) {
-  std::cout << "Activated Instrumentation Session: " <<  sessionId << std::endl;  
-//  activateInstrumentationImpl(sessionId);
-}
-
-//void SessionManager::activateInstrumentationImpl(size_t sessionId) {
-//    return;
-//}
 
 void SessionManager::deactivateSession(size_t sessionId) {
   std::unique_lock<std::shared_mutex> lock(mutex);
@@ -157,16 +142,11 @@ size_t SessionManager::addSession(const std::string &path,
 
 void SessionManager::addInstrumentationSession(){
 	std::cout << "SessionManager::addInstrumentationSession" << std::endl;
-	//Allocate the instrumentation device buffer here
-	void *buffer;
-	size_t buffer_size = 5 * 1024 * 128 + 17 * sizeof(float); //bytes
-	(void)hip::deviceMalloc<true>(&buffer, buffer_size);
 	return;
 }
 
 void SessionManager::finalizeInstrumentationSession(){
 	//Free the instrumentation device buffer here
-        std::cout << "SessionManager::finalizeInstrumentationSession" << std::endl;
         return;
 }
 

@@ -116,8 +116,8 @@ def activate(session: Optional[int] = 0) -> None:
         raise ValueError("Only one session can be activated when running from the command line.")
     libproton.activate(session)
 
-def instrument_activate(session: Optional[int] = 0) -> None:
-    libproton.instrument_activate(session)
+#def instrument_activate(session: Optional[int] = 0) -> None:
+#    libproton.instrument_activate(session)
 
 def deactivate(session: Optional[int] = 0) -> None:
     """

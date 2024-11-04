@@ -26,13 +26,12 @@ void initProton(pybind11::module &&m) {
   m.def("start_instrumentation",
         []() {
           SessionManager::instance().addInstrumentationSession();
-//          SessionManager::instance().activateInstrumentationSession(sessionId);
           return;
         });
 
-  m.def("instrument_activate", [](size_t sessionId) {
-    SessionManager::instance().activateInstrumentation(sessionId);
-  });
+//  m.def("instrument_activate", [](size_t sessionId) {
+//    SessionManager::instance().activateInstrumentation(sessionId);
+//  });
 
   m.def("activate", [](size_t sessionId) {
     SessionManager::instance().activateSession(sessionId);
@@ -47,15 +46,16 @@ void initProton(pybind11::module &&m) {
     SessionManager::instance().finalizeSession(sessionId, outputFormatEnum);
   });
 
-  m.def("finalize_instrumentation", [](){
-	SessionManager::instance().finalizeInstrumentationSession();
-	return;
-	});
 
   m.def("finalize_all", [](const std::string &outputFormat) {
     auto outputFormatEnum = parseOutputFormat(outputFormat);
     SessionManager::instance().finalizeAllSessions(outputFormatEnum);
   });
+
+  m.def("finalize_instrumentation", [](){
+	SessionManager::instance().finalizeInstrumentationSession();
+	return;
+	});
 
   m.def("record_scope", []() { return Scope::getNewScopeId(); });
 
