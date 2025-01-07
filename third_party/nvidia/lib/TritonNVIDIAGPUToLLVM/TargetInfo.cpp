@@ -616,4 +616,13 @@ bool TargetInfo::supportVectorizedAtomics() const {
   return computeCapability >= 90 && ptxVersion >= 81;
 }
 
+Value TargetInfo::clock(RewriterBase &rewriter, Location loc) const{
+  PTXBuilder builder;
+  auto &mov = builder.create("mov")->o("u32");
+  auto *destOpr = builder.newOperand("=r");
+  auto *sRegOpr = builder.newConstantOperand("%clock");
+  mov(destOpr, sRegOpr);
+  Value val = builder.launch(rewriter, loc, rewriter.getIntegerType(32), true);
+  return val;	
+}
 } // namespace mlir::triton::NVIDIA

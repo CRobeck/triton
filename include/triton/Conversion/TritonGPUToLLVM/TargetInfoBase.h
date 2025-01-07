@@ -91,6 +91,8 @@ public:
 
   virtual bool supportVectorizedAtomics() const = 0;
 
+  virtual Value clock(RewriterBase &rewriter, Location loc) const = 0;
+
   virtual ~TargetInfoBase() {}
 };
 } // namespace mlir::triton

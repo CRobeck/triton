@@ -24,6 +24,8 @@ struct RecordOpConversion
   matchAndRewrite(mlir::triton::proton::RecordOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
+    Location loc = op.getLoc();
+    Value clock = targetInfo.clock(rewriter, loc);
     rewriter.eraseOp(op);
     return success();
   }

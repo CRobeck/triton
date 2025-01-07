@@ -432,4 +432,14 @@ bool TargetInfo::supportVectorizedAtomics() const {
   return true;
 }
 
+
+Value TargetInfo::clock(RewriterBase &rewriter, Location loc) const{
+	std::string clockIntrinsic = "llvm.amdgcn.s.memtime";
+    	Value result =
+    	    LLVM::createLLVMIntrinsicCallOp(rewriter, loc, clockIntrinsic, rewriter.getIntegerType(64), {})
+    	        ->getResult(0);
+
+	return result;
+}
+
 } // namespace mlir::triton::AMD

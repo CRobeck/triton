@@ -62,6 +62,8 @@ public:
 
   bool supportVectorizedAtomics() const override;
 
+  Value clock(RewriterBase &rewriter, Location loc) const override;
+
   int getPtxVersion() const { return ptxVersion; }
 
 private:

@@ -65,6 +65,8 @@ public:
 
   bool supportVectorizedAtomics() const override;
 
+  Value clock(RewriterBase &rewriter, Location loc) const override;
+
 private:
   void printfImpl(Value formatStrStart, int formatStrByteCount, ValueRange args,
                   RewriterBase &rewriter, bool useStdErr) const;
