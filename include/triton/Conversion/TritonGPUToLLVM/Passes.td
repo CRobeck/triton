@@ -29,4 +29,8 @@ def TritonGPUGlobalScratchAllocationPass : Pass<"tritongpu-global-scratch-memory
   ];
 }
 
+def EstimateSharedMemory : Pass<"estimate-shared-memory", "mlir::ModuleOp"> {
+	let constructor = "mlir::triton::gpu::createEstimateSharedMemoryPass()";
+}
+
 #endif

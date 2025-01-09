@@ -40,5 +40,5 @@ ttgir = pgm.asm['ttgir']
 llir = pgm.asm['llir']
 #print(ttir)
 #print(ttgir)
-print(llir)
+#print(llir)
 
