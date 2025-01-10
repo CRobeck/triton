@@ -12,6 +12,8 @@
 #include "TritonAMDGPUTransforms/Passes.h"
 #include "TritonAMDGPUTransforms/TritonGPUConversion.h"
 
+#include "third_party/proton/dialect/include/TritonProtonToLLVM/Passes.h"
+
 #include "triton/Dialect/Triton/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
 #include "triton/Dialect/TritonNvidiaGPU/Transforms/Passes.h"
@@ -68,6 +70,10 @@ inline void registerTritonDialects(mlir::DialectRegistry &registry) {
   mlir::registerTritonAMDGPUConvertToBufferOps();
   mlir::triton::registerTritonAMDGPUInsertInstructionSchedHints();
   mlir::triton::registerTritonAMDGPULowerInstructionSchedHints();
+
+  // TritonProtonToLLVM passes
+  mlir::triton::registerAllocateProtonSMEMBuffer();
+
 
   // TODO: register Triton & TritonGPU passes
   registry

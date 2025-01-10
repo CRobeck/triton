@@ -215,6 +215,7 @@ def compile(src, target=None, options=None):
         target = driver.active.get_current_target()
     assert isinstance(target, GPUTarget), "target must be of GPUTarget type"
     backend = make_backend(target)
+    #proton_backend = make_proton_backend(target)
     ir_source = not isinstance(src, ASTSource)
     # create backend
     if ir_source:
