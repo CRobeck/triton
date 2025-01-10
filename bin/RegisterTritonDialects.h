@@ -69,6 +69,9 @@ inline void registerTritonDialects(mlir::DialectRegistry &registry) {
   mlir::triton::registerTritonAMDGPUInsertInstructionSchedHints();
   mlir::triton::registerTritonAMDGPULowerInstructionSchedHints();
 
+  //TritonProtonToLLVM passes
+  //mlir::triton::registerOptimizeProtonLDSUsage();
+
   // TODO: register Triton & TritonGPU passes
   registry
       .insert<mlir::triton::TritonDialect, mlir::cf::ControlFlowDialect,
