@@ -16,6 +16,7 @@ void populateProtonOpPatterns(LLVMTypeConverter &typeConverter,
                               const TargetInfoBase &targetInfo,
                               PatternBenefit benefit) {
   populateRecordOpToLLVMPattern(typeConverter, patterns, targetInfo, benefit);
+  populateFuncOpToLLVMPattern(typeConverter, patterns, targetInfo, benefit);
 }
 
 } // namespace proton
