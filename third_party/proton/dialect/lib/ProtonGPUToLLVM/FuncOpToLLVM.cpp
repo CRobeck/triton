@@ -8,6 +8,14 @@
 #include "third_party/proton/dialect/include/Conversion/ProtonGPUToLLVM/PatternProtonOpToLLVM.h"
 #include "third_party/proton/dialect/include/Dialect/Proton/IR/Dialect.h"
 
+
+namespace mlir {
+FailureOr<LLVM::LLVMFuncOp>
+convertFuncOpToLLVMFuncOp(FunctionOpInterface funcOp,
+                          ConversionPatternRewriter &rewriter,
+                          const LLVMTypeConverter &converter);
+}
+
 namespace {
 
 static void filterFuncAttributes(LLVM::LLVMFuncOp op, bool filterArgAttrs,
@@ -54,9 +62,29 @@ struct FuncOpConversion
         FunctionType::get(ctx, amendedInputTy, func.getResultTypes());
     SmallVector<NamedAttribute> amendedAttrs;
     filterFuncAttributes(func, /*filterArgAttrs=*/true, amendedAttrs);
-//    SmallVector<NamedAttribute> amendedAttrs;    
-//    filterFuncAttributes(funcOp, /*filterArgAttrs=*/true, amendedAttrs);
+    if (auto argAttrs = func.getAllArgAttrs()) {
+      llvm::SmallVector<mlir::Attribute> amendedArgAttrs(argAttrs.begin(),
+                                                         argAttrs.end());
+      while (amendedArgAttrs.size() < amendedInputTy.size()) {
+        amendedArgAttrs.emplace_back(DictionaryAttr::get(ctx));
+      }
+      amendedAttrs.push_back(
+          rewriter.getNamedAttr(func.getArgAttrsAttrName(),
+                                rewriter.getArrayAttr(amendedArgAttrs)));
+    }    
+    auto amendedFuncOp = rewriter.create<triton::FuncOp>(
+        func.getLoc(), func.getName(), amendedFuncTy, amendedAttrs);    
+  auto &region = func.getBody();
+//  region.addArgument(globalPtrTy, loc);
+//    rewriter.inlineRegionBefore(region, amendedFuncOp.getBody(),
+//                                amendedFuncOp.end());  
+//
+//    FailureOr<LLVM::LLVMFuncOp> maybeNewFuncOp =
+//        mlir::convertFuncOpToLLVMFuncOp(amendedFuncOp, rewriter,
+//                                        *getTypeConverter());    
+//
     llvm::errs() << func << "!!!!\n";
+    rewriter.eraseOp(func);
     rewriter.replaceOp(op, op);
     return success();
   }
