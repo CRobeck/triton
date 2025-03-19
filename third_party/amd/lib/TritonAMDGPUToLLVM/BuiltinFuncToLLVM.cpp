@@ -133,7 +133,7 @@ private:
 
     auto loc = callOp.getLoc();
 
-    Operation *replacementOp = nullptr;
+    Value replacementOp = nullptr;
     if (calleeName == "__triton_hip_iabs") {
       assert(operands.size() == 1);
       replacementOp = rewriter.create<LLVM::AbsOp>(loc, returnType, operands[0],
@@ -168,8 +168,19 @@ private:
           LLVM::createConstantF32(loc, rewriter, log2e), defaultFlags);
       const char *intrinsic = ftz ? "llvm.amdgcn.exp2.f32" : "llvm.exp2.f32";
 
-      replacementOp = LLVM::createLLVMIntrinsicCallOp(
-          rewriter, loc, intrinsic, returnType, mulOp->getResult(0));
+      replacementOp =
+           LLVM::createLLVMIntrinsicCallOp(rewriter, loc, intrinsic, returnType,
+                                           mulOp->getResult(0))
+               .getResult(0);
+     } else if (calleeName == "__triton_hip_load_acquire_system") {
+       assert(operands.size() == 1);      
+       llvm::outs() << "catching __triton_hip_load_acqiure_system" << "\n";
+      auto loadOp = rewriter.create<LLVM::LoadOp>(
+           loc, f32_ty, operands[0], /*alignment=*/16,
+           /*isVolatile =*/false, /*isNonTemporal*/ false,
+           /*isInvariant =*/false, /*isInvariantGroup=*/false,
+           LLVM::AtomicOrdering::acquire, "agent");
+       replacementOp = loadOp.getResult();       
     }
 
     if (replacementOp) {
