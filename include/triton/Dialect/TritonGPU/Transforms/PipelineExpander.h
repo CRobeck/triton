@@ -50,6 +50,9 @@ struct PipeliningOption {
   /// iterations. If the epilogue is predicated; the user needs to provide a
   /// lambda to generate the predicated version of operations.
   bool peelEpilogue = true;
+  
+  /// Control whether the epilogue is "guarded". 
+  bool guardEpilogue = true;
 
   /// Control whether the transformation checks that the number of iterations is
   /// greater or equal to the number of stages and skip the transformation if

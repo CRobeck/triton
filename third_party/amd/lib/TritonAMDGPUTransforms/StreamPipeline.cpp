@@ -118,7 +118,7 @@ public:
   StreamPipeliner(scf::ForOp _forOp, int _numStages, int _globalPrefetch,
                   int _localPrefetch, bool _useAsyncCopy)
       : forOp(_forOp), numStages(_numStages), numBuffers(1),
-        useAsyncCopy(_useAsyncCopy), schedule(numStages),
+        useAsyncCopy(_useAsyncCopy), schedule(numStages), mustGuardEpilogue(true),
         axisInfoAnalysis(forOp->getParentOfType<ModuleOp>()) {
     int lastStage = numStages - 1;
     stages[SCHED_GLOBAL_LOAD] = 0;
@@ -126,9 +126,6 @@ public:
     stages[SCHED_LOCAL_LOAD] = lastStage - _localPrefetch;
     stages[SCHED_COMPUTE] = lastStage;
 
-    options.supportDynamicLoops = true;
-    options.peelEpilogue = true;
-    options.predicateFn = streamPredication;
   }
 
   LogicalResult pipelineLoop();
@@ -163,6 +160,9 @@ private:
 
   // User settings
   int numStages;
+  
+  //Is it statically provable that we can unguard the epilogue
+  bool mustGuardEpilogue;
 
   // Computed number of buffers
   int numBuffers;
@@ -199,8 +199,6 @@ private:
   // Capture list of new shared memory buffers.
   SmallVector<Value> sharedMemAllocs;
 
-  // Pipelining options for the PipelineExpander
-  tt::PipeliningOption options;
 };
 
 } // namespace
@@ -790,10 +788,16 @@ void StreamPipeliner::scheduleRemainingToLastStage() {
   // Take care of the ordering of the ops - uses cannot be scheduled to the
   // cluster before the definition.
   auto cluster = clusters[SCHED_COMPUTE];
+  int count = 0;
   DenseMap<Operation *, tt::CoarseSchedule::Cluster> opToCluster;
   for (auto &op : forOp.getBody()->without_terminator()) {
-    if (schedule.count(&op) == 0)
+    if (schedule.count(&op) == 0){
       opToCluster[&op] = cluster;
+      count++;
+    }
+  }
+  if (count != 0) {
+    mustGuardEpilogue = true;  
   }
   SmallVector<Operation *> queue;
   for (auto [op, stage, cluster] : schedule.getOpsInOrder(forOp)) {
@@ -923,18 +927,6 @@ LogicalResult StreamPipeliner::preprocessLoopAndBuildSchedule() {
     schedule.dump();
   });
 
-  // Create the final schedule for the kernel loop. This will dictate the
-  // stages and order of operations to the pipeline expander.
-  std::vector<std::pair<Operation *, unsigned>> coarseSchedule =
-      schedule.createFinalSchedule(forOp);
-
-  // Fill out the pipeline options.
-  options.getScheduleFn =
-      [coarseSchedule](scf::ForOp,
-                       std::vector<std::pair<Operation *, unsigned>> &s) {
-        s = std::move(coarseSchedule);
-      };
-
   OpBuilder builder(forOp);
   builder.setInsertionPointAfter(forOp);
   // Explicitly deallocate created allocations.
@@ -948,6 +940,27 @@ LogicalResult StreamPipeliner::pipelineLoop() {
   if (failed(preprocessLoopAndBuildSchedule()))
     return failure();
   LDBG("Loop before sending to expander:\n" << *forOp);
+
+ // Create the final schedule for the kernel loop. This will dictate the
+  // stages and order of operations to the pipeline expander.
+  std::vector<std::pair<Operation *, unsigned>> coarseSchedule =
+      schedule.createFinalSchedule(forOp);
+
+  // Pipelining options for the PipelineExpander
+  tt::PipeliningOption options;
+  options.supportDynamicLoops = true;
+  options.peelEpilogue = true;
+  options.guardEpilogue = mustGuardEpilogue;
+  if (mustGuardEpilogue)
+    options.predicateFn = streamPredication;
+  else
+    options.predicateFn = tt::predicateOp;
+
+  options.getScheduleFn =
+      [&coarseSchedule](scf::ForOp,
+                        std::vector<std::pair<Operation *, unsigned>> &s) {
+        s = std::move(coarseSchedule);
+      };  
 
   IRRewriter rewriter(forOp->getContext());
   rewriter.setInsertionPoint(forOp);
