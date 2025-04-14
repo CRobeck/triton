@@ -1,5 +1,5 @@
-// RUN: triton-opt %s -split-input-file -tritonamdgpu-stream-pipeline="num_stages=2 try_to_unguard_epilogue=0" -canonicalize | FileCheck %s --check-prefixes=COMMON,SYNC,GUARD-EPILOGUE
-// RUN: triton-opt %s -split-input-file -tritonamdgpu-stream-pipeline="num_stages=2 try_to_unguard_epilogue=1" -canonicalize | FileCheck %s --check-prefixes=COMMON,SYNC
+// RUN: triton-opt %s -split-input-file -tritonamdgpu-stream-pipeline="num_stages=2 unguard_epilogue=0" -canonicalize | FileCheck %s --check-prefixes=COMMON,SYNC,GUARD-EPILOGUE
+// RUN: triton-opt %s -split-input-file -tritonamdgpu-stream-pipeline="num_stages=2 unguard_epilogue=1" -canonicalize | FileCheck %s --check-prefixes=COMMON,SYNC
 
 
 // Check that we can pipeline a simple matmul kernel

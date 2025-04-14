@@ -28,7 +28,7 @@ def TritonAMDGPUStreamPipeline : Pass<"tritonamdgpu-stream-pipeline", "mlir::Mod
     Option<"useAsyncCopy", "use_async_copy",
            "bool", /*default*/"false",
            "Use AsyncCopyGlobalToLocal to directly load to shared memory">,
-    Option<"tryToUngaurdEpilogue", "try_to_unguard_epilogue",
+    Option<"tryToUngaurdEpilogue", "unguard_epilogue",
            "bool",  /*default*/"false",
 	   "Attempt to unguard the epilogue by proving when all used loop-results "
 	   "will return their incoming value after execution">,
