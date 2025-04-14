@@ -775,14 +775,14 @@ LoopPipelinerInternal::emitEpilogue(RewriterBase &rewriter,
           unsigned nextVersion = currentVersion + 1;
           Value pred = predicates[currentVersion];
           Value prevValue = valueMapping[mapVal][currentVersion];
-	  Value nextValue = pair.value();
-	  // We need to guard the epilogue if any used loop-results are modified
-	  // in the loop body. There may be loop-carried results needed for the next stage
-	  // therefore we also guard all results without uses
+          Value nextValue = pair.value();
+          // We need to guard the epilogue if any used loop-results are modified
+          // in the loop body. There may be loop-carried results needed for the
+          // next stage therefore we also guard all results without uses
           if (guardEpilogue)
             nextValue = rewriter.create<arith::SelectOp>(loc, pred, nextValue,
                                                          prevValue);
-          returnValues[ri] = nextValue;	  
+          returnValues[ri] = nextValue;
           if (nextVersion <= maxStage)
             setValueMapping(mapVal, nextValue, nextVersion);
         }

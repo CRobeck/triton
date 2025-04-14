@@ -116,16 +116,17 @@ class StreamPipeliner {
 
 public:
   StreamPipeliner(scf::ForOp _forOp, int _numStages, int _globalPrefetch,
-                  int _localPrefetch, bool _useAsyncCopy, bool _tryToUnguardEpilogue)
+                  int _localPrefetch, bool _useAsyncCopy,
+                  bool _tryToUnguardEpilogue)
       : forOp(_forOp), numStages(_numStages), numBuffers(1),
-        useAsyncCopy(_useAsyncCopy), schedule(numStages), tryToUnguardEpilogue(false),
+        useAsyncCopy(_useAsyncCopy), schedule(numStages),
+        tryToUnguardEpilogue(false),
         axisInfoAnalysis(forOp->getParentOfType<ModuleOp>()) {
     int lastStage = numStages - 1;
     stages[SCHED_GLOBAL_LOAD] = 0;
     stages[SCHED_LOCAL_STORE] = _globalPrefetch;
     stages[SCHED_LOCAL_LOAD] = lastStage - _localPrefetch;
     stages[SCHED_COMPUTE] = lastStage;
-
   }
 
   LogicalResult pipelineLoop();
@@ -150,7 +151,7 @@ private:
 
   // Try to unguard epilogue helper functions
   bool safeDAG(Value v, int index);
-  void checkResultResilience();  
+  void checkResultResilience();
 
   void scheduleOp(Operation *op, SchedType type, int stage = -1) {
     if (stage < 0)
@@ -165,9 +166,9 @@ private:
   // User settings
   int numStages;
   bool tryToUnguardEpilogue;
-  
-  // Do we have to guard the epilogue reguardless of 
-  // user setting. 
+
+  // Do we have to guard the epilogue reguardless of
+  // user setting.
   bool mustGuardEpilogue = true;
 
   // Computed number of buffers
@@ -204,11 +205,9 @@ private:
 
   // Capture list of new shared memory buffers.
   SmallVector<Value> sharedMemAllocs;
-
 };
 
 } // namespace
-
 
 bool StreamPipeliner::safeDAG(Value v, int index) {
   if (Operation *defOp = v.getDefiningOp()) {
@@ -291,12 +290,13 @@ void StreamPipeliner::checkResultResilience() {
 //            can cause invalid schedules to be produced.
 LogicalResult StreamPipeliner::initSchedule(int maxIndirectionLevel) {
 
-
-  if(tryToUnguardEpilogue){
-  	// Check to see if we can unconditionalize epilogue by checking
-  	// if the loop results are invariant to unguarding the epilogue
-	 mustGuardEpilogue = false;
-	 checkResultResilience();
+  if (tryToUnguardEpilogue) {
+    // Check to see if we can unconditionalize epilogue by checking
+    // if the loop results are invariant to unguarding the epilogue
+    // checkResultResilience will reset mustGuardEpilogue if found not
+    // to be invariant
+    mustGuardEpilogue = false;
+    checkResultResilience();
   }
   bool pairedGlobalLoadLocalStore = stages[SCHED_LOCAL_STORE] == 0;
   stages[SCHED_LOCAL_STORE] += maxIndirectionLevel;
@@ -878,13 +878,13 @@ void StreamPipeliner::scheduleRemainingToLastStage() {
   int count = 0;
   DenseMap<Operation *, tt::CoarseSchedule::Cluster> opToCluster;
   for (auto &op : forOp.getBody()->without_terminator()) {
-    if (schedule.count(&op) == 0){
+    if (schedule.count(&op) == 0) {
       opToCluster[&op] = cluster;
       count++;
     }
   }
   if (count != 0) {
-    mustGuardEpilogue = true;  
+    mustGuardEpilogue = true;
   }
   SmallVector<Operation *> queue;
   for (auto [op, stage, cluster] : schedule.getOpsInOrder(forOp)) {
@@ -1028,7 +1028,7 @@ LogicalResult StreamPipeliner::pipelineLoop() {
     return failure();
   LDBG("Loop before sending to expander:\n" << *forOp);
 
- // Create the final schedule for the kernel loop. This will dictate the
+  // Create the final schedule for the kernel loop. This will dictate the
   // stages and order of operations to the pipeline expander.
   std::vector<std::pair<Operation *, unsigned>> coarseSchedule =
       schedule.createFinalSchedule(forOp);
@@ -1037,9 +1037,13 @@ LogicalResult StreamPipeliner::pipelineLoop() {
   tt::PipeliningOption options;
   options.supportDynamicLoops = true;
   options.peelEpilogue = true;
-  //guardEpilogue can only be false if both mustGuardEpilogue is false
-  //and tryToUnguardEpilogue (user setting) is true
+  // guardEpilogue can only be false if both mustGuardEpilogue is false
+  // and tryToUnguardEpilogue (user setting) is true
   options.guardEpilogue = mustGuardEpilogue || !tryToUnguardEpilogue;
+  // The epilogue peeling generates a select which increases register pressure
+  // we therefore conditionally executing the dot to optimize the select away
+  // however if we unguard the epilogue we can just use the standard epilogue
+  // peeling since we're explicitly skipping the select
   if (options.guardEpilogue)
     options.predicateFn = streamPredication;
   else
@@ -1049,7 +1053,7 @@ LogicalResult StreamPipeliner::pipelineLoop() {
       [&coarseSchedule](scf::ForOp,
                         std::vector<std::pair<Operation *, unsigned>> &s) {
         s = std::move(coarseSchedule);
-      };  
+      };
 
   IRRewriter rewriter(forOp->getContext());
   rewriter.setInsertionPoint(forOp);
@@ -1115,7 +1119,8 @@ void labelLoadOpsForTritonDot(scf::ForOp forOp) {
 struct PipelinePass : public TritonAMDGPUStreamPipelineBase<PipelinePass> {
   PipelinePass() = default;
   PipelinePass(int32_t _numStages, int32_t _globalPrefetch,
-               int32_t _localPrefetch, bool _useAsyncCopy, bool _tryToUngaurdEpilogue) {
+               int32_t _localPrefetch, bool _useAsyncCopy,
+               bool _tryToUngaurdEpilogue) {
     this->numStages = _numStages;
 
     this->globalPrefetch = _globalPrefetch;
@@ -1152,7 +1157,8 @@ struct PipelinePass : public TritonAMDGPUStreamPipelineBase<PipelinePass> {
       if (!checkPrecondition(forOp))
         continue;
       StreamPipeliner sp(forOp, tt::getNumStagesOrDefault(forOp, numStages),
-                         globalPrefetch, localPrefetch, useAsyncCopy, tryToUngaurdEpilogue);
+                         globalPrefetch, localPrefetch, useAsyncCopy,
+                         tryToUngaurdEpilogue);
       (void)sp.pipelineLoop();
     }
 
@@ -1165,8 +1171,11 @@ struct PipelinePass : public TritonAMDGPUStreamPipelineBase<PipelinePass> {
 };
 } // namespace
 
-std::unique_ptr<Pass> mlir::createTritonAMDGPUStreamPipelinePass(
-    int numStages, int globalPrefetch, int localPrefetch, bool useAsyncCopy, bool tryToUngaurdEpilogue) {
+std::unique_ptr<Pass>
+mlir::createTritonAMDGPUStreamPipelinePass(int numStages, int globalPrefetch,
+                                           int localPrefetch, bool useAsyncCopy,
+                                           bool tryToUngaurdEpilogue) {
   return std::make_unique<PipelinePass>(numStages, globalPrefetch,
-                                        localPrefetch, useAsyncCopy, tryToUngaurdEpilogue);
+                                        localPrefetch, useAsyncCopy,
+                                        tryToUngaurdEpilogue);
 }
