@@ -120,7 +120,7 @@ public:
                   bool _tryToUnguardEpilogue)
       : forOp(_forOp), numStages(_numStages), numBuffers(1),
         useAsyncCopy(_useAsyncCopy), schedule(numStages),
-        tryToUnguardEpilogue(false),
+        tryToUnguardEpilogue(_tryToUnguardEpilogue),
         axisInfoAnalysis(forOp->getParentOfType<ModuleOp>()) {
     int lastStage = numStages - 1;
     stages[SCHED_GLOBAL_LOAD] = 0;
