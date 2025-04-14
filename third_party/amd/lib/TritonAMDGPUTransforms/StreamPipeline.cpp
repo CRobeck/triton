@@ -116,9 +116,9 @@ class StreamPipeliner {
 
 public:
   StreamPipeliner(scf::ForOp _forOp, int _numStages, int _globalPrefetch,
-                  int _localPrefetch, bool _useAsyncCopy)
+                  int _localPrefetch, bool _useAsyncCopy, bool _tryToUnguardEpilogue)
       : forOp(_forOp), numStages(_numStages), numBuffers(1),
-        useAsyncCopy(_useAsyncCopy), schedule(numStages), mustGuardEpilogue(true),
+        useAsyncCopy(_useAsyncCopy), schedule(numStages), tryToUnguardEpilogue(false),
         axisInfoAnalysis(forOp->getParentOfType<ModuleOp>()) {
     int lastStage = numStages - 1;
     stages[SCHED_GLOBAL_LOAD] = 0;
@@ -148,6 +148,10 @@ private:
   void createStreamCopy(tt::LoadOp loadOp, Value alloc, Value extractIdx);
   void createStreamOps();
 
+  // Try to unguard epilogue helper functions
+  bool safeDAG(Value v, int index);
+  void checkResultResilience();  
+
   void scheduleOp(Operation *op, SchedType type, int stage = -1) {
     if (stage < 0)
       stage = stages[type];
@@ -160,9 +164,11 @@ private:
 
   // User settings
   int numStages;
+  bool tryToUnguardEpilogue;
   
-  //Is it statically provable that we can unguard the epilogue
-  bool mustGuardEpilogue;
+  // Do we have to guard the epilogue reguardless of 
+  // user setting. 
+  bool mustGuardEpilogue = true;
 
   // Computed number of buffers
   int numBuffers;
@@ -203,6 +209,80 @@ private:
 
 } // namespace
 
+
+bool StreamPipeliner::safeDAG(Value v, int index) {
+  if (Operation *defOp = v.getDefiningOp()) {
+    if (auto loadOp = dyn_cast<tt::LoadOp>(defOp)) {
+      // Loads in the loop will be guarded
+      return loadOp->getParentOfType<scf::ForOp>() == forOp;
+    } else if (auto cvtOp = dyn_cast<ttg::ConvertLayoutOp>(defOp)) {
+      return safeDAG(cvtOp.getSrc(), index);
+    } else if (auto dotOp = dyn_cast<tt::DotOpInterface>(defOp)) {
+      // 1 input must be safe
+      if (!safeDAG(dotOp.getA(), -1) && !safeDAG(dotOp.getB(), -1))
+        return false;
+      auto C = dotOp->getOperand(2);
+      return safeDAG(C, index);
+    } else if (auto splatOp = dyn_cast<tt::SplatOp>(defOp)) {
+      // both inputs must be safe
+      return safeDAG(splatOp.getOperand(), -1);
+    } else if (auto bcastOp = dyn_cast<tt::BroadcastOp>(defOp)) {
+      // both inputs must be safe
+      return safeDAG(bcastOp.getOperand(), -1);
+    } else if (auto expandOp = dyn_cast<tt::ExpandDimsOp>(defOp)) {
+      // both inputs must be safe
+      return safeDAG(expandOp.getOperand(), -1);
+    } else if (auto addOp = dyn_cast<arith::AddFOp>(defOp)) {
+      // both inputs must be safe
+      return safeDAG(addOp.getLhs(), -1) && safeDAG(addOp.getRhs(), -1);
+    } else if (auto subOp = dyn_cast<arith::SubFOp>(defOp)) {
+      // both inputs must be safe
+      return safeDAG(subOp.getLhs(), -1) && safeDAG(subOp.getRhs(), -1);
+    } else if (auto mulOp = dyn_cast<arith::MulFOp>(defOp)) {
+      // either input must be safe
+      return safeDAG(mulOp.getLhs(), -1) || safeDAG(mulOp.getRhs(), -1);
+    } else if (auto truncOp = dyn_cast<arith::TruncFOp>(defOp)) {
+      // either input must be safe
+      return safeDAG(truncOp.getOperand(), -1);
+    } else if (auto constOp = dyn_cast<arith::ConstantOp>(defOp)) {
+      // check for constant zero
+      if (auto attr = dyn_cast<FloatAttr>(constOp.getValue()))
+        return attr.getValue().isZero();
+    } else if (auto exp2Op = dyn_cast<math::Exp2Op>(defOp)) {
+      // either input must be safe
+      return safeDAG(exp2Op.getOperand(), -1);
+    } else if (auto selectOp = dyn_cast<arith::SelectOp>(defOp)) {
+      // both inputs must be safe
+      return safeDAG(selectOp.getTrueValue(), -1) &&
+             safeDAG(selectOp.getFalseValue(), -1);
+    } else if (auto transposeOp = dyn_cast<tt::TransposeOpInterface>(defOp)) {
+      // input must be safe
+      return safeDAG(transposeOp.getSrc(), -1);
+    } else {
+      // Unknown op default to false
+      LDBG("Unknown op for unguard epilogue in stream pipeliner");
+      return false;
+    }
+  } else {
+    // check block arg
+    auto arg = cast<BlockArgument>(v);
+    return arg.getArgNumber() == index;
+  }
+  return false;
+}
+
+void StreamPipeliner::checkResultResilience() {
+  auto yieldVals = forOp.getYieldedValuesMutable().value();
+  for (auto [index, res] : llvm::enumerate(forOp.getResults())) {
+    if (!res.use_empty()) {
+      // Check init value == 0
+      // Backtrack yield value
+      Value yieldVal = yieldVals[index].get();
+      if (!safeDAG(yieldVal, index + 1)) // + induction
+        mustGuardEpilogue = true;
+    }
+  }
+}
 // Init Schedule Config based on settings and loop characteristics.
 // Create clusters in order of ops in loop. This can interleave ops
 // from different stages in the same cluster to achieve better backend
@@ -211,6 +291,13 @@ private:
 //            can cause invalid schedules to be produced.
 LogicalResult StreamPipeliner::initSchedule(int maxIndirectionLevel) {
 
+
+  if(tryToUnguardEpilogue){
+  	// Check to see if we can unconditionalize epilogue by checking
+  	// if the loop results are invariant to unguarding the epilogue
+	 mustGuardEpilogue = false;
+	 checkResultResilience();
+  }
   bool pairedGlobalLoadLocalStore = stages[SCHED_LOCAL_STORE] == 0;
   stages[SCHED_LOCAL_STORE] += maxIndirectionLevel;
 
@@ -950,8 +1037,10 @@ LogicalResult StreamPipeliner::pipelineLoop() {
   tt::PipeliningOption options;
   options.supportDynamicLoops = true;
   options.peelEpilogue = true;
-  options.guardEpilogue = mustGuardEpilogue;
-  if (mustGuardEpilogue)
+  //guardEpilogue can only be false if both mustGuardEpilogue is false
+  //and tryToUnguardEpilogue (user setting) is true
+  options.guardEpilogue = mustGuardEpilogue || !tryToUnguardEpilogue;
+  if (options.guardEpilogue)
     options.predicateFn = streamPredication;
   else
     options.predicateFn = tt::predicateOp;
@@ -1026,13 +1115,14 @@ void labelLoadOpsForTritonDot(scf::ForOp forOp) {
 struct PipelinePass : public TritonAMDGPUStreamPipelineBase<PipelinePass> {
   PipelinePass() = default;
   PipelinePass(int32_t _numStages, int32_t _globalPrefetch,
-               int32_t _localPrefetch, bool _useAsyncCopy) {
+               int32_t _localPrefetch, bool _useAsyncCopy, bool _tryToUngaurdEpilogue) {
     this->numStages = _numStages;
 
     this->globalPrefetch = _globalPrefetch;
     this->localPrefetch = _localPrefetch;
 
     this->useAsyncCopy = _useAsyncCopy;
+    this->tryToUngaurdEpilogue = _tryToUngaurdEpilogue;
   }
 
   void runOnOperation() override {
@@ -1062,7 +1152,7 @@ struct PipelinePass : public TritonAMDGPUStreamPipelineBase<PipelinePass> {
       if (!checkPrecondition(forOp))
         continue;
       StreamPipeliner sp(forOp, tt::getNumStagesOrDefault(forOp, numStages),
-                         globalPrefetch, localPrefetch, useAsyncCopy);
+                         globalPrefetch, localPrefetch, useAsyncCopy, tryToUngaurdEpilogue);
       (void)sp.pipelineLoop();
     }
 
@@ -1076,7 +1166,7 @@ struct PipelinePass : public TritonAMDGPUStreamPipelineBase<PipelinePass> {
 } // namespace
 
 std::unique_ptr<Pass> mlir::createTritonAMDGPUStreamPipelinePass(
-    int numStages, int globalPrefetch, int localPrefetch, bool useAsyncCopy) {
+    int numStages, int globalPrefetch, int localPrefetch, bool useAsyncCopy, bool tryToUngaurdEpilogue) {
   return std::make_unique<PipelinePass>(numStages, globalPrefetch,
-                                        localPrefetch, useAsyncCopy);
+                                        localPrefetch, useAsyncCopy, tryToUngaurdEpilogue);
 }
