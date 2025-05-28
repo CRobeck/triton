@@ -14,7 +14,8 @@ class PT_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 def PT_RecordOp : PT_Op<"record", [
-  MemoryEffects<[MemRead<DefaultResource>, MemWrite<DefaultResource>]>
+  MemoryEffects<[MemRead<DefaultResource>, MemWrite<DefaultResource>]>,
+  DeclareOpInterfaceMethods<ConditionallySpeculatable>
 ]> {
   let summary = "Record an event";
 
@@ -40,6 +41,7 @@ def PT_RecordOp : PT_Op<"record", [
   );
 
   let assemblyFormat = "(`start` $isStart^):(`end`)? $name attr-dict";
+
 }
 
 #endif // PROTON_OPS

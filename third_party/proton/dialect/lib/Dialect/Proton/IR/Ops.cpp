@@ -10,3 +10,16 @@
 #include "Dialect/Proton/IR/Ops.cpp.inc"
 
 #include "Dialect/Proton/IR/OpsEnums.cpp.inc"
+
+
+namespace mlir {
+  namespace triton {
+  namespace proton {
+
+Speculation::Speculatability RecordOp::getSpeculatability() {
+  return Speculation::NotSpeculatable;
+}
+
+} // namespace proton
+} // namespace triton
+} // namespace mlir
