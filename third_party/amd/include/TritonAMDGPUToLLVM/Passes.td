@@ -15,6 +15,11 @@ def OptimizeAMDLDSUsage : Pass<"optimize-amd-lds-usage", "mlir::ModuleOp"> {
     ];
 }
 
+def OptimizeAtomics : Pass<"optimize-atomics", "mlir::ModuleOp"> {
+    let constructor = "mlir::triton::AMD::createOptimizeAtomicsPass()";
+}
+
+
 def AllocateAMDGPUSharedMemory : Pass<"allocate-amdgpu-shared-memory", "mlir::ModuleOp"> {
   let summary = "Add metadata for shared memory allocation";
 

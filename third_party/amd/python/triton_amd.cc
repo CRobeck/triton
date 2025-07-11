@@ -56,6 +56,8 @@ void init_triton_amd_passes_ttgpuir(py::module &&m) {
   ADD_PASS_WRAPPER_2("add_optimize_lds_usage",
                      mlir::triton::AMD::createOptimizeLDSUsagePass,
                      const std::string &, int32_t);
+  ADD_PASS_WRAPPER_0("add_optimize_atomics",
+                     mlir::triton::AMD::createOptimizeAtomicsPass);
   ADD_PASS_WRAPPER_0("add_allocate_shared_memory",
                      mlir::triton::createAllocateAMDGPUSharedMemory);
   ADD_PASS_OPTION_WRAPPER_3("add_accelerate_matmul",
@@ -296,4 +298,8 @@ void init_triton_amd(py::module &&m) {
   m.def("add_scalarize_packed_fops_llvm_pass", [](llvm::Function *fn) {
     mlir::triton::AMD::runScalarizePackedFOpsPass(*fn);
   });
+
+  // m.def("add_optimize_global_atomics_pass", [](llvm::Function *fn) {
+  //   mlir::triton::AMD::runOptimizeGlobalAtomicsPass(*fn);
+  // });
 }

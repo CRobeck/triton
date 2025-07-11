@@ -72,6 +72,25 @@ SmallVector<GCNBuilder::Operand *, 4> GCNBuilder::getAllArgs() const {
   return res;
 }
 
+Operation *GCNBuilder::launch(OpBuilder &rewriter, Location loc, Type resTy,
+                              bool hasSideEffect, bool isAlignStack,
+                              ArrayRef<Attribute> attrs) const {
+  auto *ctx = rewriter.getContext();
+  auto inlineAsm = rewriter.create<LLVM::InlineAsmOp>(
+      loc, resTy, getAllMLIRArgs(), // operands
+      dump(),                       // asm_string
+      getConstraints(),             // constraints
+      hasSideEffect,                // has_side_effects
+      isAlignStack,                 // is_align_stack
+      LLVM::TailCallKind::None,
+      LLVM::AsmDialectAttr::get(ctx,
+                                LLVM::AsmDialect::AD_ATT), // asm_dialect
+      ArrayAttr::get(ctx, attrs)                           // operand_attrs
+  );
+
+  return inlineAsm.getOperation();
+}
+
 mlir::Value GCNBuilder::launch(RewriterBase &rewriter, Location loc, Type resTy,
                                bool hasSideEffect, bool isAlignStack,
                                ArrayRef<Attribute> attrs) const {

@@ -450,6 +450,7 @@ class amd_knobs(base_knobs):
     local_prefetch: env_int = env_int("TRITON_HIP_LOCAL_PREFETCH")
     use_async_copy: env_bool = env_bool("TRITON_HIP_USE_ASYNC_COPY")
     scalarize_packed_fops: env_bool = env_bool("AMDGCN_SCALARIZE_PACKED_FOPS")
+    optimize_atomics = env_bool = env_bool("AMDGCN_OPTIMIZE_ATOMICS")
 
 
 class proton_knobs(base_knobs):

@@ -215,6 +215,9 @@ class HIPBackend(BaseBackend):
         pm.run(mod)
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
+
+        if knobs.amd.optimize_atomics:
+            amd.passes.ttgpuir.add_optimize_atomics(pm)
         passes.ttgpuir.add_coalesce(pm)
         passes.ttgpuir.add_remove_layout_conversions(pm)
         passes.ttgpuir.add_optimize_thread_locality(pm)
@@ -308,6 +311,7 @@ class HIPBackend(BaseBackend):
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
 
+        amd.passes.ttgpuir.add_builtin_func_to_llvmir(pm, __HIP_FTZ)
         passes.convert.add_cf_to_llvmir(pm)
         passes.convert.add_arith_to_llvmir(pm)
         passes.common.add_canonicalizer(pm)
@@ -317,7 +321,6 @@ class HIPBackend(BaseBackend):
             amd.passes.ttgpuir.lower_instruction_sched_hints(pm, options.arch, options.num_stages)
         if not knobs.compilation.disable_line_info:
             passes.llvmir.add_di_scope(pm)
-        amd.passes.ttgpuir.add_builtin_func_to_llvmir(pm, __HIP_FTZ)
         pm.run(mod)
 
         # LLVM-IR (MLIR) -> LLVM-IR (LLVM)
@@ -377,7 +380,7 @@ class HIPBackend(BaseBackend):
 
         llvm.optimize_module(llvm_mod, llvm.OPTIMIZE_O3, options.arch, '', [], options.enable_fp_fusion)
 
-        if knobs.amd.scalarize_packed_fops:
+        if knobs.amd.ecalarize_packed_fops:
             amd.add_scalarize_packed_fops_llvm_pass(fns[0])
 
         # Get some metadata

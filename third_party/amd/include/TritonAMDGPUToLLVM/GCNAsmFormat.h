@@ -232,6 +232,10 @@ struct GCNBuilder {
 
   std::string dump() const;
 
+  Operation *launch(OpBuilder &rewriter, Location loc, Type resTy,
+                    bool hasSideEffect = true, bool isAlignStack = false,
+                    ArrayRef<Attribute> attrs = {}) const;
+
   mlir::Value launch(RewriterBase &rewriter, Location loc, Type resTy,
                      bool hasSideEffect = true, bool isAlignStack = false,
                      ArrayRef<Attribute> attrs = {}) const;
