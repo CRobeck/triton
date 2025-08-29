@@ -23,6 +23,7 @@ inline const std::set<std::string> CACHE_INVALIDATING_ENV_VARS = {
     "LLVM_IR_ENABLE_DUMP",
     "LLVM_ENABLE_TIMING",
     "LLVM_PASS_PLUGIN_PATH",
+    "PASS_MANAGER_CONFIG_PATH",
     "MLIR_ENABLE_DIAGNOSTICS",
     "MLIR_ENABLE_DUMP",
     "MLIR_DUMP_PATH",
@@ -44,6 +45,7 @@ inline const std::set<std::string> CACHE_INVALIDATING_ENV_VARS = {
     "ALLOW_LHS_TMEM_LAYOUT_CONVERSION",
     "TRITON_F32_DEFAULT",
     "TRITON_PREFER_TMEM_16x256_LAYOUT",
+    "MLIR_PASS_PLUGIN_PATH",
     // clang-format on
 };
 

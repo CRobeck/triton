@@ -14,6 +14,10 @@ import signal
 import os
 import subprocess
 from pathlib import Path
+import json
+
+from importlib.util import spec_from_file_location, module_from_spec
+import sys
 
 
 def min_dot_size(target: GPUTarget):
@@ -239,7 +243,7 @@ class CUDABackend(BaseBackend):
         passes.common.add_cse(pm)
         passes.common.add_symbol_dce(pm)
         passes.ttir.add_loop_unroll(pm)
-        pm.run(mod)
+        pm.run(mod, '.make_ttir.repro.mlir')
         return mod
 
     @staticmethod
@@ -255,6 +259,22 @@ class CUDABackend(BaseBackend):
             cluster_info.clusterDimZ = opt.cluster_dims[2]
         pm = ir.pass_manager(mod.context)
         dump_enabled = pm.enable_debug()
+
+        file_path = '/home/plotfi/opt/dev/Triton-MetaGPU-Clean/triton/byo_compiler.py'
+        module_name = 'byo_compiler_setup'
+
+        spec = spec_from_file_location(module_name, file_path)
+        if spec:
+            module = module_from_spec(spec)
+            sys.modules[module_name] = module  # Add to sys.modules if you want it discoverable
+            spec.loader.exec_module(module)
+            module.byo_make_ttgir(pm, mod, metadata, opt, capability, cluster_info, dump_enabled, passes, nvidia)
+            pm.run(mod, '.make_ttgir.repro.mlir')
+            metadata["cluster_dims"] = (cluster_info.clusterDimX, cluster_info.clusterDimY, cluster_info.clusterDimZ)
+            tensordesc_meta = mod.get_tensordesc_metadata()
+            metadata["tensordesc_meta"] = tensordesc_meta
+            return mod
+
         passes.ttir.add_convert_to_ttgpuir(pm, f"cuda:{capability}", opt.num_warps, 32, opt.num_ctas)
         # optimize TTGIR
         passes.ttgpuir.add_coalesce(pm)
@@ -316,7 +336,7 @@ class CUDABackend(BaseBackend):
         passes.common.add_cse(pm)
         passes.common.add_canonicalizer(pm)
 
-        pm.run(mod)
+        pm.run(mod, '.make_ttgir.repro.mlir')
         metadata["cluster_dims"] = (cluster_info.clusterDimX, cluster_info.clusterDimY, cluster_info.clusterDimZ)
         tensordesc_meta = mod.get_tensordesc_metadata()
         metadata["tensordesc_meta"] = tensordesc_meta
@@ -334,7 +354,7 @@ class CUDABackend(BaseBackend):
         passes.gluon.add_canonicalizer(pm)
         passes.ttgpuir.add_combine_tensor_select_and_if(pm)
 
-        pm.run(mod)
+        pm.run(mod, '.gluon_to_ttgir.repro.mlir')
         metadata["tensordesc_meta"] = mod.get_tensordesc_metadata()
         return mod
 
@@ -373,7 +393,7 @@ class CUDABackend(BaseBackend):
         if CUDABackend.instrumentation:
             CUDABackend.instrumentation.patch("llvmir_to_llvm", pm, mod.context)
 
-        pm.run(mod)
+        pm.run(mod, '.make_llir.repro.mlir')
         # LLVM-IR (MLIR) -> LLVM-IR (LLVM)
         llvm.init_targets()
         context = llvm.context()
@@ -509,8 +529,17 @@ please share the reproducer above with Triton project.
         return cubin
 
     def add_stages(self, stages, options, language):
+        global_config = None
+        global_config_path = None
+        if "PASS_MANAGER_CONFIG_PATH" in os.environ:
+            global_config_path = os.path.realpath(os.environ.get("PASS_MANAGER_CONFIG_PATH"))
+        if(global_config_path != None and os.access(global_config_path, os.R_OK)):
+            print(f"Loading global config from {global_config_path}")
+            with open(global_config_path, "r") as f:
+                global_config = json.load(f)
         capability = self._parse_arch(options.arch)
         if language == Language.TRITON:
+            # ttgir_pass_config = self.make_ttgir_pass_config(options.num_warps, options.num_ctas, options.num_stages, capability, options.cluster_dims, dump_enabled=False)
             stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options, capability)
             stages["ttgir"] = lambda src, metadata: self.make_ttgir(src, metadata, options, capability)
         elif language == Language.GLUON:
