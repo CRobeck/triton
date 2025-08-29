@@ -16,6 +16,9 @@ import subprocess
 from pathlib import Path
 import json
 
+from importlib.util import spec_from_file_location, module_from_spec
+import sys
+
 
 def min_dot_size(target: GPUTarget):
 
@@ -257,8 +260,15 @@ class CUDABackend(BaseBackend):
         pm = ir.pass_manager(mod.context)
         dump_enabled = pm.enable_debug()
 
-        if doBYOPassSetup:
-            byo_make_ttgiir(mod, metadata, opt, capability, passes, nvidia)
+        file_path = '/home/plotfi/opt/dev/Triton-MetaGPU-Clean/triton/byo_compiler.py'
+        module_name = 'byo_compiler_setup'
+
+        spec = spec_from_file_location(module_name, file_path)
+        if spec:
+            module = module_from_spec(spec)
+            sys.modules[module_name] = module  # Add to sys.modules if you want it discoverable
+            spec.loader.exec_module(module)
+            module.byo_make_ttgir(pm, mod, metadata, opt, capability, cluster_info, dump_enabled, passes, nvidia)
             pm.run(mod, '.make_ttgir.repro.mlir')
             metadata["cluster_dims"] = (cluster_info.clusterDimX, cluster_info.clusterDimY, cluster_info.clusterDimZ)
             tensordesc_meta = mod.get_tensordesc_metadata()
@@ -531,7 +541,7 @@ please share the reproducer above with Triton project.
         if language == Language.TRITON:
             # ttgir_pass_config = self.make_ttgir_pass_config(options.num_warps, options.num_ctas, options.num_stages, capability, options.cluster_dims, dump_enabled=False)
             stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options, capability)
-            stages["ttgir"] = lambda src, metadata: self.make_ttgir(src, metadata, options, capability, ttgir_pass_config, global_config)
+            stages["ttgir"] = lambda src, metadata: self.make_ttgir(src, metadata, options, capability)
         elif language == Language.GLUON:
             stages["ttgir"] = lambda src, metadata: self.gluon_to_ttgir(src, metadata, options, capability)
         stages["llir"] = lambda src, metadata: self.make_llir(src, metadata, options, capability)
