@@ -15,6 +15,8 @@ import os
 import subprocess
 from pathlib import Path
 
+from importlib.util import spec_from_file_location, module_from_spec
+import sys
 
 def min_dot_size(target: GPUTarget):
 
@@ -509,6 +511,26 @@ please share the reproducer above with Triton project.
                 os.remove(fbin)
         return cubin
 
+    def add_override_stages(self, stages, options, language, capability):
+        # Limit to TTIR and TTGIR for now
+        if language == Language.GLUON: return
+
+        file_path = os.environ.get('TRITON_OVERRIDE_PASS_STAGES', 'override_compiler.py')
+        module_name = 'triton_override_compiler_stages'
+        spec = spec_from_file_location(module_name, file_path) if os.path.isfile(file_path) else None
+        if not spec: return
+
+        module = module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+
+        has_func = lambda mod, name: hasattr(mod, name) and callable(getattr(mod, name))
+        make_lambda = lambda f: lambda src, metadata: f(src, metadata, options, capability)
+        if has_func(module, "make_ttir"): stages["ttir"] = make_lambda(module.make_ttir)
+        if has_func(module, "make_ttgir"): stages["ttgir"] = make_lambda(module.make_ttgir)
+        if has_func(module, "make_llir"): stages["llir"] = make_lambda(module.make_llir)
+
+
     def add_stages(self, stages, options, language):
         capability = self._parse_arch(options.arch)
         if language == Language.TRITON:
@@ -519,6 +541,8 @@ please share the reproducer above with Triton project.
         stages["llir"] = lambda src, metadata: self.make_llir(src, metadata, options, capability)
         stages["ptx"] = lambda src, metadata: self.make_ptx(src, metadata, options, self.target.arch)
         stages["cubin"] = lambda src, metadata: self.make_cubin(src, metadata, options, self.target.arch)
+        self.add_override_stages(stages, options, language, capability)
+
 
     @functools.lru_cache()
     def hash(self):
