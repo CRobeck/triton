@@ -70,6 +70,9 @@ ptxas
 third_party/nvidia/backend/include
 third_party/nvidia/backend/lib/cupti
 
+# Compiler override
+override_compiler.py
+
 # Docs
 docs/_build/
 docs/python-api/generated/

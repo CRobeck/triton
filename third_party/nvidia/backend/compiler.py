@@ -16,6 +16,8 @@ import subprocess
 from pathlib import Path
 import inspect
 
+from importlib.util import spec_from_file_location, module_from_spec
+import sys
 
 def min_dot_size(target: GPUTarget):
 
@@ -510,16 +512,42 @@ please share the reproducer above with Triton project.
                 os.remove(fbin)
         return cubin
 
+    def add_override_stages(self, stages, options, language, capability):
+        # Limit to TTIR and TTGIR for now
+        if language == Language.GLUON: return
+
+        file_path = os.environ.get('TRITON_OVERRIDE_PASS_STAGES', 'override_compiler.py')
+        module_name = 'triton_override_compiler_stages'
+        spec = spec_from_file_location(module_name, file_path) if os.path.isfile(file_path) else None
+        if not spec: return
+
+        module = module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        if not hasattr(module, 'GPUOverrideBackend'): return
+        module = getattr(module, 'GPUOverrideBackend')
+
+        has_func = lambda mod, name: hasattr(mod, name) and callable(getattr(mod, name))
+        make_lambda = lambda f: lambda src, metadata: f(src, metadata, options, capability)
+        if has_func(module, "make_ttir"): stages["ttir"] = make_lambda(module.make_ttir)
+        if has_func(module, "make_ttgir"): stages["ttgir"] = make_lambda(module.make_ttgir)
+        # make_llir is not static, it uses self.target.arch so we don't allow overriding it
+        # for now
+
+
     def add_stages(self, stages, options, language):
         capability = self._parse_arch(options.arch)
 
         # TRITON_DUMP_PASS_STAGES=byo_compiler.py python python/tutorials/01-vector-add.py
         if os.environ.get('TRITON_DUMP_PASS_STAGES') is not None:
             source_code = "# This is generated from Triton compiler.py"
+            source_code = source_code + '\n' + "from triton._C.libtriton import ir, passes, llvm, nvidia"
             source_code = source_code + '\n' + "class GPUOverrideBackend:"
             source_code = source_code + '\n' + inspect.getsource(self.make_ttir)
             source_code = source_code + '\n' + inspect.getsource(self.make_ttgir)
-            source_code = source_code + '\n' + inspect.getsource(self.make_llir)
+
+            # make_llir is not static, it uses self.target.arch
+            # source_code = source_code + '\n' + inspect.getsource(self.make_llir)
             with open(os.environ['TRITON_DUMP_PASS_STAGES'], "w") as file:
                 file.write(source_code)
 
@@ -531,6 +559,8 @@ please share the reproducer above with Triton project.
         stages["llir"] = lambda src, metadata: self.make_llir(src, metadata, options, capability)
         stages["ptx"] = lambda src, metadata: self.make_ptx(src, metadata, options, self.target.arch)
         stages["cubin"] = lambda src, metadata: self.make_cubin(src, metadata, options, self.target.arch)
+        self.add_override_stages(stages, options, language, capability)
+
 
     @functools.lru_cache()
     def hash(self):
