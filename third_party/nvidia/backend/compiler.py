@@ -14,6 +14,7 @@ import signal
 import os
 import subprocess
 from pathlib import Path
+import inspect
 
 from importlib.util import spec_from_file_location, module_from_spec
 import sys
@@ -533,6 +534,17 @@ please share the reproducer above with Triton project.
 
     def add_stages(self, stages, options, language):
         capability = self._parse_arch(options.arch)
+
+        # TRITON_DUMP_PASS_STAGES=byo_compiler.py python python/tutorials/01-vector-add.py
+        if os.environ.get('TRITON_DUMP_PASS_STAGES') is not None:
+            source_code = "# This is generated from Triton compiler.py"
+            source_code = source_code + '\n' + "class GPUOverrideBackend:"
+            source_code = source_code + '\n' + inspect.getsource(self.make_ttir)
+            source_code = source_code + '\n' + inspect.getsource(self.make_ttgir)
+            source_code = source_code + '\n' + inspect.getsource(self.make_llir)
+            with open(os.environ['TRITON_DUMP_PASS_STAGES'], "w") as file:
+                file.write(source_code)
+
         if language == Language.TRITON:
             stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options, capability)
             stages["ttgir"] = lambda src, metadata: self.make_ttgir(src, metadata, options, capability)
