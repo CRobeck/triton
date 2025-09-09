@@ -516,9 +516,10 @@ please share the reproducer above with Triton project.
         # Limit to TTIR and TTGIR for now
         if language == Language.GLUON: return
 
-        file_path = os.environ.get('TRITON_OVERRIDE_PASS_STAGES', 'override_compiler.py')
+        full_name = os.path.abspath('override_compiler.py')
+        print(f"\nOverriding compile pass stages with file {full_name}")
         module_name = 'triton_override_compiler_stages'
-        spec = spec_from_file_location(module_name, file_path) if os.path.isfile(file_path) else None
+        spec = spec_from_file_location(module_name, full_name) if os.path.isfile(full_name) else None
         if not spec: return
 
         module = module_from_spec(spec)
@@ -538,8 +539,8 @@ please share the reproducer above with Triton project.
     def add_stages(self, stages, options, language):
         capability = self._parse_arch(options.arch)
 
-        # TRITON_DUMP_PASS_STAGES=byo_compiler.py python python/tutorials/01-vector-add.py
-        if os.environ.get('TRITON_DUMP_PASS_STAGES') is not None:
+        # TRITON_DUMP_PASS_STAGES=1 python python/tutorials/01-vector-add.py
+        if knobs.compilation.dump_pipeline:
             source_code = "# This is generated from Triton compiler.py"
             source_code = source_code + '\n' + "from triton._C.libtriton import ir, passes, llvm, nvidia"
             source_code = source_code + '\n' + "class GPUOverrideBackend:"
@@ -548,7 +549,7 @@ please share the reproducer above with Triton project.
 
             # make_llir is not static, it uses self.target.arch
             # source_code = source_code + '\n' + inspect.getsource(self.make_llir)
-            with open(os.environ['TRITON_DUMP_PASS_STAGES'], "w") as file:
+            with open("compiler_override.py", "w") as file:
                 file.write(source_code)
 
         if language == Language.TRITON:
@@ -559,7 +560,8 @@ please share the reproducer above with Triton project.
         stages["llir"] = lambda src, metadata: self.make_llir(src, metadata, options, capability)
         stages["ptx"] = lambda src, metadata: self.make_ptx(src, metadata, options, self.target.arch)
         stages["cubin"] = lambda src, metadata: self.make_cubin(src, metadata, options, self.target.arch)
-        self.add_override_stages(stages, options, language, capability)
+        if knobs.compilation.override_stages:
+            self.add_override_stages(stages, options, language, capability)
 
 
     @functools.lru_cache()

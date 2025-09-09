@@ -353,7 +353,9 @@ class cache_knobs(base_knobs):
 
 class compilation_knobs(base_knobs):
     override: env_bool = env_bool("TRITON_KERNEL_OVERRIDE")
+    override_stages = env_bool("TRITON_OVERRIDE_PASS_STAGES")
     dump_ir: env_bool = env_bool("TRITON_KERNEL_DUMP")
+    dump_pipeline = env_bool("TRITON_DUMP_PASS_STAGES")
     store_binary_only: env_bool = env_bool("TRITON_STORE_BINARY_ONLY")
     always_compile: env_bool = env_bool("TRITON_ALWAYS_COMPILE")
     # TODO: Use enum to constrain / 'typecheck' the values
