@@ -71,7 +71,7 @@ third_party/nvidia/backend/include
 third_party/nvidia/backend/lib/cupti
 
 # Compiler override
-override_compiler.py
+compiler_override.py
 
 # Docs
 docs/_build/

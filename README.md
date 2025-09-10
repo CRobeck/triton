@@ -251,6 +251,16 @@ export TRITON_OVERRIDE_DIR=<override_dir>
 # Step 4: Run the kernel again to see the overridden result
 ```
 
+**Compiler Pipeline Override Steps**
+```bash
+export TRITON_ALWAYS_COMPILE=1
+export TRITON_DUMP_PASS_STAGES=1
+export TRITON_OVERRIDE_PASS_STAGES=1
+# Step 1: Run the kernel once to dump compiler pipe's compiler_override.py file
+# Step 2: Modify the pass pipeline you do want to override (delete, add, reorder)
+# Step 3: Run the kernel again to see the overridden result
+# Currently only over ridding the TTIR and TTGIR pipeline is supported
+```
 
 # Changelog
 
