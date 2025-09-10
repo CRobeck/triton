@@ -2,7 +2,6 @@ import torch
 
 import triton
 import triton.language as tl
-import pathlib
 import sys
 
 from typing import NamedTuple

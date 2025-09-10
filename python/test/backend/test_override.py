@@ -1,7 +1,7 @@
 import os
 import subprocess
 import pathlib
-import json
+import re
 
 import triton
 
@@ -24,7 +24,6 @@ def test_override(tmp_path: pathlib.Path):
     first_env["TRITON_DUMP_DIR"] = str(tmp_path)
     first_env["TRITON_REPRODUCER_PATH"] = str(tmp_path)
 
-
     subprocess.run(["python3", dir_path + "/override_helper.py", str(tmp_path)], env=first_env)
     filename = tmp_path / "override_compiler.py"
 
@@ -35,7 +34,7 @@ def test_override(tmp_path: pathlib.Path):
 
     with open(filename, "w") as outfile:
         for line in file_str:
-            # turn off pre-fetching
+            # turn off pre-fetching for test
             if "add_prefetch" in line:
                 continue
             outfile.write(line)
@@ -46,23 +45,10 @@ def test_override(tmp_path: pathlib.Path):
     second_env["TRITON_OVERRIDE_PASS_STAGES"] = "1"
     second_env["TRITON_REPRODUCER_PATH"] = str(tmp_path)
     second_env["TRITON_OVERRIDE_DIR"] = str(tmp_path)
+
     subprocess.run(["python3", dir_path + "/override_helper.py", str(tmp_path)], env=second_env)
 
-    triton_[(1, )]()
-
-    stages = {
-        'make_ttir': "triton-combine",
-        'make_ttgir': "triton.*-coalesce",
-        'make_llir': "convert-triton-.*gpu-to-llvm",
-    }
-
-
-    for stage_name, stage_pipeline_check in stages.items():
-        assert os.path.exists(str(repro_path) + '.' + stage_name + '.repro.mlir')
-    #     curr_repro_path = tmp_path / ("repro_prefix." + stage_name + ".repro.mlir")
-    #     repro = curr_repro_path.read_text()
-    #     assert "mlir_reproducer" in repro, f"Expected MLIR reproducer in {curr_repro_path}. Got:\n{repro}"
-    #     m = re.search(r"pipeline: \"(.*" + stage_pipeline_check + ".*)\"", repro)
-    #     assert m, "Expected to match pass pipeline after \"pipeline:\" in MLIR reproducer"
-    #     pipeline_str = m.group(1)
-    #     assert pipeline_str, "Expected non-empty pass pipeline in MLIR reproducer"
+    curr_repro_path = tmp_path / ("../test_override0." + "make_ttgir" + ".repro.mlir")
+    repro = curr_repro_path.read_text()
+    m = re.search(r"pipeline: \"(.*" + "convert-triton-to-tritongpu" + ".*)\"", repro)
+    assert "tritongpu-prefetch" not in m.group(1)

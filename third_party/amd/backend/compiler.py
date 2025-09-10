@@ -454,8 +454,8 @@ class HIPBackend(BaseBackend):
         # Limit to TTIR and TTGIR for now
         if language == Language.GLUON: return
 
-        if knobs.cache.dump_dir:
-            full_name = os.path.join(knobs.cache.dump_dir, "override_compiler.py")
+        if knobs.cache.override_dir:
+            full_name = os.path.join(knobs.cache.override_dir, "override_compiler.py")
         else:
             full_name = os.path.join(self.home_dir, "override_compiler.py")
 
