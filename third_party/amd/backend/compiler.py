@@ -10,6 +10,10 @@ import re
 import functools
 import warnings
 from pathlib import Path
+import inspect
+
+from importlib.util import spec_from_file_location, module_from_spec
+import sys
 
 
 def get_min_dot_size(target: GPUTarget):
@@ -445,7 +449,43 @@ class HIPBackend(BaseBackend):
                 ret = fd_out.read()
         return ret
 
+    def add_override_stages(self, stages, options, language, capability):
+        # Limit to TTIR and TTGIR for now
+        if language == Language.GLUON: return
+
+        full_name = os.path.abspath('override_compiler.py')
+        print(f"\nOverriding compile pass stages with file {full_name}")
+        module_name = 'triton_override_compiler_stages'
+        spec = spec_from_file_location(module_name, full_name) if os.path.isfile(full_name) else None
+        if not spec: return
+
+        module = module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        if not hasattr(module, 'GPUOverrideBackend'): return
+        module = getattr(module, 'GPUOverrideBackend')
+
+        has_func = lambda mod, name: hasattr(mod, name) and callable(getattr(mod, name))
+        make_lambda = lambda f: lambda src, metadata: f(src, metadata, options, capability)
+        if has_func(module, "make_ttir"): stages["ttir"] = make_lambda(module.make_ttir)
+        if has_func(module, "make_ttgir"): stages["ttgir"] = make_lambda(module.make_ttgir)
+        # make_llir is not static, it uses self.target.arch so we don't allow overriding it
+        # for now
+
     def add_stages(self, stages, options, language):
+        # TRITON_DUMP_PASS_STAGES=1 python python/tutorials/01-vector-add.py
+        if knobs.compilation.dump_pipeline:
+            source_code = "# This is generated from Triton compiler.py"
+            source_code = source_code + '\n' + "from triton._C.libtriton import ir, passes, llvm, nvidia"
+            source_code = source_code + '\n' + "class GPUOverrideBackend:"
+            source_code = source_code + '\n' + inspect.getsource(self.make_ttir)
+            source_code = source_code + '\n' + inspect.getsource(self.make_ttgir)
+
+            # make_llir is not static, it uses self.target.arch
+            # source_code = source_code + '\n' + inspect.getsource(self.make_llir)
+            with open("compiler_override.py", "w") as file:
+                file.write(source_code)
+
         if language == Language.TRITON:
             stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options)
             stages["ttgir"] = lambda src, metadata: self.make_ttgir(src, metadata, options)
@@ -454,6 +494,8 @@ class HIPBackend(BaseBackend):
         stages["llir"] = lambda src, metadata: self.make_llir(src, metadata, options)
         stages["amdgcn"] = lambda src, metadata: self.make_amdgcn(src, metadata, options)
         stages["hsaco"] = lambda src, metadata: self.make_hsaco(src, metadata, options)
+        if knobs.compilation.override_stages:
+            self.add_override_stages(stages, options, language, capability)
 
     @functools.lru_cache()
     def hash(self):
