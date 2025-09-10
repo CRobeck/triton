@@ -19,6 +19,7 @@ import inspect
 from importlib.util import spec_from_file_location, module_from_spec
 import sys
 
+
 def min_dot_size(target: GPUTarget):
 
     def check_dot_compatibility(lhs_type, rhs_type) -> Tuple[int, int, int]:  # [m, n, k]
@@ -516,7 +517,11 @@ please share the reproducer above with Triton project.
         # Limit to TTIR and TTGIR for now
         if language == Language.GLUON: return
 
-        full_name = os.path.abspath('override_compiler.py')
+        if knobs.cache.dump_dir:
+            full_name = os.path.join(knobs.cache.dump_dir, "override_compiler.py")
+        else:
+            full_name = os.path.join(self.home_dir, "override_compiler.py")
+
         print(f"\nOverriding compile pass stages with file {full_name}")
         module_name = 'triton_override_compiler_stages'
         spec = spec_from_file_location(module_name, full_name) if os.path.isfile(full_name) else None
@@ -535,7 +540,6 @@ please share the reproducer above with Triton project.
         # make_llir is not static, it uses self.target.arch so we don't allow overriding it
         # for now
 
-
     def add_stages(self, stages, options, language):
         capability = self._parse_arch(options.arch)
 
@@ -549,7 +553,12 @@ please share the reproducer above with Triton project.
 
             # make_llir is not static, it uses self.target.arch
             # source_code = source_code + '\n' + inspect.getsource(self.make_llir)
-            with open("compiler_override.py", "w") as file:
+            if knobs.cache.dump_dir:
+                full_name = os.path.join(knobs.cache.dump_dir, "override_compiler.py")
+            else:
+                full_name = os.path.join(self.home_dir, "override_compiler.py")
+
+            with open(full_name, "w") as file:
                 file.write(source_code)
 
         if language == Language.TRITON:
@@ -562,7 +571,6 @@ please share the reproducer above with Triton project.
         stages["cubin"] = lambda src, metadata: self.make_cubin(src, metadata, options, self.target.arch)
         if knobs.compilation.override_stages:
             self.add_override_stages(stages, options, language, capability)
-
 
     @functools.lru_cache()
     def hash(self):
