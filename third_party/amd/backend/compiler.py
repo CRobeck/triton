@@ -455,9 +455,9 @@ class HIPBackend(BaseBackend):
         if language == Language.GLUON: return
 
         if knobs.cache.override_dir:
-            full_name = os.path.join(knobs.cache.override_dir, "override_compiler.py")
+            full_name = os.path.join(knobs.cache.override_dir, "compiler_override.py")
         else:
-            full_name = os.path.join(self.home_dir, "override_compiler.py")
+            full_name = os.path.join(self.home_dir, "compiler_override.py")
 
         print(f"\nOverriding compile pass stages with file {full_name}")
         module_name = 'triton_override_compiler_stages'
@@ -478,7 +478,6 @@ class HIPBackend(BaseBackend):
         # for now
 
     def add_stages(self, stages, options, language):
-        # TRITON_DUMP_PASS_STAGES=1 python python/tutorials/01-vector-add.py
         if knobs.compilation.dump_pipeline:
             source_code = "# This is generated from Triton compiler.py"
             source_code = source_code + '\n' + "from triton._C.libtriton import ir, passes, llvm, amd"
@@ -486,8 +485,6 @@ class HIPBackend(BaseBackend):
             source_code = source_code + '\n' + inspect.getsource(self.make_ttir)
             source_code = source_code + '\n' + inspect.getsource(self.make_ttgir)
 
-            # make_llir is not static, it uses self.target.arch
-            # source_code = source_code + '\n' + inspect.getsource(self.make_llir)
             with open("compiler_override.py", "w") as file:
                 file.write(source_code)
 

@@ -25,7 +25,7 @@ def test_override(tmp_path: pathlib.Path):
     first_env["TRITON_REPRODUCER_PATH"] = str(tmp_path)
 
     subprocess.run(["python3", dir_path + "/override_helper.py", str(tmp_path)], env=first_env)
-    filename = tmp_path / "override_compiler.py"
+    filename = tmp_path / "compiler_override.py"
 
     print(str(filename))
 
