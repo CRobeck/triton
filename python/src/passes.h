@@ -1,6 +1,9 @@
 #define ADD_PASS_WRAPPER_0(name, builder)                                      \
   m.def(name, [](mlir::PassManager &pm) { pm.addPass(builder()); })
 
+#define ADD_PLUGINPASS_WRAPPER(name, builder)                                      \
+  m.def(name, [&](mlir::PassManager &pm) { pm.addPass(builder()); })
+
 #define ADD_PASS_WRAPPER_1(name, builder, ty0)                                 \
   m.def(name,                                                                  \
         [](mlir::PassManager &pm, ty0 val0) { pm.addPass(builder(val0)); })
