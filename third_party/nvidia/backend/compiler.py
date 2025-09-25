@@ -355,6 +355,7 @@ class CUDABackend(BaseBackend):
         if knobs.compilation.enable_experimental_consan:
             # Call ConcurrencySanitizerPass here, before allocating global scratch memory but after allocating tensor and shared
             passes.ttgpuir.add_concurrency_sanitizer(pm)
+
         passes.ttgpuir.add_allocate_global_scratch_memory(pm)
         nvidia.passes.ttnvgpuir.add_proxy_fence_insertion(pm, capability)
         # instrumentation point here so we can override IRs above (e.g., ttir and ttgir)
@@ -373,6 +374,7 @@ class CUDABackend(BaseBackend):
             passes.llvmir.add_di_scope(pm)
         if CUDABackend.instrumentation:
             CUDABackend.instrumentation.patch("llvmir_to_llvm", pm, mod.context)
+        passes.ttgpuir.add_triton_plugin_pass(pm) #TTGIR plugin pass
 
         pm.run(mod, 'make_llir')
         # LLVM-IR (MLIR) -> LLVM-IR (LLVM)

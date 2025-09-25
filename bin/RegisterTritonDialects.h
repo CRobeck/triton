@@ -38,6 +38,9 @@
 #include "mlir/Dialect/LLVMIR/ROCDLDialect.h"
 #include "mlir/Dialect/LLVMIR/Transforms/InlinerInterfaceImpl.h"
 #include "mlir/InitAllPasses.h"
+#include "triton/Tools/Sys/GetEnv.hpp"
+#include "mlir/Tools/Plugins/PassPlugin.h"
+
 
 namespace mlir {
 namespace test {
@@ -121,6 +124,20 @@ inline void registerTritonDialects(mlir::DialectRegistry &registry) {
   mlir::triton::proton::gpu::registerAllocateProtonGlobalScratchBufferPass();
   mlir::triton::proton::gpu::registerScheduleBufferStorePass();
   mlir::triton::proton::gpu::registerAddSchedBarriersPass();
+
+  //Plugin passes
+  std::string filename =
+      mlir::triton::tools::getStrEnv("MLIR_PASS_PLUGIN_PATH");
+  std::string error;
+  auto library =
+      llvm::sys::DynamicLibrary::getPermanentLibrary(filename.c_str(), &error);
+
+  intptr_t getDetailsFn =
+      (intptr_t)library.getAddressOfSymbol("registerTritonPluginPass");
+
+  void (*registerPluginPass)() = reinterpret_cast<void (*)()>(getDetailsFn);
+
+  registerPluginPass();
 
   registry.insert<
       mlir::triton::TritonDialect, mlir::cf::ControlFlowDialect,

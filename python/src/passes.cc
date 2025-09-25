@@ -54,6 +54,9 @@ void init_triton_passes_ttir(py::module &&m) {
                             int, int, int);
 }
 
+// void (*bar)();
+// typedef void (*p_bar) (std::unique_ptr<::mlir::Pass>);
+
 void init_triton_passes_ttgpuir(py::module &&m) {
   using namespace mlir;
   using namespace mlir::triton::gpu;
@@ -95,24 +98,31 @@ void init_triton_passes_ttgpuir(py::module &&m) {
   ADD_PASS_WRAPPER_0("add_concurrency_sanitizer",
                      createTritonInstrumentConcurrencySanitizer);
 
-  std::string pluginFile =
+  std::string filename =
       mlir::triton::tools::getStrEnv("MLIR_PASS_PLUGIN_PATH");
 
-  if (!pluginFile.empty()) {
-      auto plugin = mlir::PassPlugin::load(pluginFile);
-    if (!plugin) {
-      llvm::Error Err = plugin.takeError();
-      std::string ErrMsg =
-          "Pass Plugin Error: " + llvm::toString(std::move(Err));
-      throw std::runtime_error(ErrMsg);
-    }
-// m.def("add_gpu_hello", mlir ::PassManager &pm) {
-//   pm.addPass(plugin.get().registerPassRegistryCallbacks()());
-// });
-    // plugin.get().registerPassRegistryCallbacks();
-    // ADD_PLUGINPASS_WRAPPER("add_gpu_hello",
-    //                  plugin.get().registerPassRegistryCallbacks());
-  // }
+  std::string error;
+  auto library =
+      llvm::sys::DynamicLibrary::getPermanentLibrary(filename.c_str(), &error);
+
+  if(!library.isValid()) {
+    llvm::errs() << "Failed to load plugin library: " << error << "\n";
+    throw std::runtime_error("Failed to load plugin library");
+  }
+
+  intptr_t getDetailsFn =
+      (intptr_t)library.getAddressOfSymbol("addTritonPluginPass");
+
+  if (!getDetailsFn) {
+    llvm::errs() << "Failed to get symbol: " << error << "\n";
+    throw std::runtime_error("Failed to get symbol");
+  }
+  void (*createPluginPlass)(mlir ::PassManager *pm) = reinterpret_cast<void (*)(mlir ::PassManager *)>(getDetailsFn);
+
+  m.def("add_triton_plugin_pass", [=](mlir ::PassManager &pm) {
+    createPluginPlass(&pm);
+  });
+
 }
 
 void init_triton_passes_convert(py::module &&m) {
