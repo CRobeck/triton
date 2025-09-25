@@ -99,7 +99,7 @@ void init_triton_passes_ttgpuir(py::module &&m) {
                      createTritonInstrumentConcurrencySanitizer);
 
   std::string filename =
-      mlir::triton::tools::getStrEnv("MLIR_PASS_PLUGIN_PATH");
+      mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
 
   std::string error;
   auto library =

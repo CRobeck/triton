@@ -127,7 +127,7 @@ inline void registerTritonDialects(mlir::DialectRegistry &registry) {
 
   //Plugin passes
   std::string filename =
-      mlir::triton::tools::getStrEnv("MLIR_PASS_PLUGIN_PATH");
+      mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
   std::string error;
   auto library =
       llvm::sys::DynamicLibrary::getPermanentLibrary(filename.c_str(), &error);
