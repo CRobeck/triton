@@ -299,6 +299,7 @@ class CUDABackend(BaseBackend):
         passes.common.add_canonicalizer(pm)
         passes.ttir.add_loop_aware_cse(pm)
         passes.ttgpuir.add_prefetch(pm)
+
         passes.ttgpuir.add_optimize_dot_operands(pm, capability >= 80)
         passes.ttgpuir.add_coalesce_async_copy(pm)
         nvidia.passes.ttnvgpuir.add_optimize_tmem_layouts(pm)
@@ -315,6 +316,7 @@ class CUDABackend(BaseBackend):
         passes.common.add_sccp(pm)
         passes.common.add_cse(pm)
         passes.common.add_canonicalizer(pm)
+        passes.ttgpuir.add_triton_plugin_pass(pm) #TTGIR plugin pass
 
         pm.run(mod, 'make_ttgir')
         metadata["cluster_dims"] = (cluster_info.clusterDimX, cluster_info.clusterDimY, cluster_info.clusterDimZ)
@@ -355,7 +357,6 @@ class CUDABackend(BaseBackend):
         if knobs.compilation.enable_experimental_consan:
             # Call ConcurrencySanitizerPass here, before allocating global scratch memory but after allocating tensor and shared
             passes.ttgpuir.add_concurrency_sanitizer(pm)
-
         passes.ttgpuir.add_allocate_global_scratch_memory(pm)
         nvidia.passes.ttnvgpuir.add_proxy_fence_insertion(pm, capability)
         # instrumentation point here so we can override IRs above (e.g., ttir and ttgir)
@@ -374,7 +375,6 @@ class CUDABackend(BaseBackend):
             passes.llvmir.add_di_scope(pm)
         if CUDABackend.instrumentation:
             CUDABackend.instrumentation.patch("llvmir_to_llvm", pm, mod.context)
-        passes.ttgpuir.add_triton_plugin_pass(pm) #TTGIR plugin pass
 
         pm.run(mod, 'make_llir')
         # LLVM-IR (MLIR) -> LLVM-IR (LLVM)

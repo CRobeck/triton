@@ -126,18 +126,18 @@ inline void registerTritonDialects(mlir::DialectRegistry &registry) {
   mlir::triton::proton::gpu::registerAddSchedBarriersPass();
 
   //Plugin passes
-  std::string filename =
-      mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
-  std::string error;
-  auto library =
-      llvm::sys::DynamicLibrary::getPermanentLibrary(filename.c_str(), &error);
+//   std::string filename =
+//       mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
+//   std::string error;
+//   auto library =
+//       llvm::sys::DynamicLibrary::getPermanentLibrary(filename.c_str(), &error);
 
-  intptr_t getDetailsFn =
-      (intptr_t)library.getAddressOfSymbol("registerTritonPluginPass");
+//   intptr_t getDetailsFn =
+//       (intptr_t)library.getAddressOfSymbol("registerTritonPluginPass");
 
-  void (*registerPluginPass)() = reinterpret_cast<void (*)()>(getDetailsFn);
+//   void (*registerPluginPass)() = reinterpret_cast<void (*)()>(getDetailsFn);
 
-  registerPluginPass();
+//   registerPluginPass();
 
   registry.insert<
       mlir::triton::TritonDialect, mlir::cf::ControlFlowDialect,

@@ -54,9 +54,6 @@ void init_triton_passes_ttir(py::module &&m) {
                             int, int, int);
 }
 
-// void (*bar)();
-// typedef void (*p_bar) (std::unique_ptr<::mlir::Pass>);
-
 void init_triton_passes_ttgpuir(py::module &&m) {
   using namespace mlir;
   using namespace mlir::triton::gpu;
@@ -85,7 +82,7 @@ void init_triton_passes_ttgpuir(py::module &&m) {
                      createTritonGPUReduceDataDuplication);
   ADD_PASS_WRAPPER_0("add_allocate_warp_groups",
                      createTritonGPUAllocateWarpGroups);
-  ADD_PASS_WRAPPER_0("add_allocate_shared_memory", createAllocateSharedMemory);
+  ADD_PASS_WRAPPER_0("≈", createAllocateSharedMemory);
   ADD_PASS_WRAPPER_0("add_allocate_global_scratch_memory",
                      createTritonGPUGlobalScratchAllocationPass);
   ADD_PASS_WRAPPER_0("add_combine_tensor_select_and_if",
@@ -117,10 +114,10 @@ void init_triton_passes_ttgpuir(py::module &&m) {
     llvm::errs() << "Failed to get symbol: " << error << "\n";
     throw std::runtime_error("Failed to get symbol");
   }
-  void (*createPluginPlass)(mlir ::PassManager *pm) = reinterpret_cast<void (*)(mlir ::PassManager *)>(getDetailsFn);
+  void (*createPluginPass)(mlir ::PassManager *pm) = reinterpret_cast<void (*)(mlir ::PassManager *)>(getDetailsFn);
 
   m.def("add_triton_plugin_pass", [=](mlir ::PassManager &pm) {
-    createPluginPlass(&pm);
+    createPluginPass(&pm);
   });
 
 }
