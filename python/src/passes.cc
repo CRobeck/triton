@@ -10,7 +10,6 @@
 #include "triton/Dialect/Gluon/Transforms/Passes.h"
 #include "triton/Dialect/Triton/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
-#include "triton/Dialect/TritonInstrument/Transforms/Passes.h"
 #include "triton/Target/LLVMIR/Passes.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -57,7 +56,6 @@ void init_triton_passes_ttir(py::module &&m) {
 void init_triton_passes_ttgpuir(py::module &&m) {
   using namespace mlir;
   using namespace mlir::triton::gpu;
-  using namespace mlir::triton::instrument;
   ADD_PASS_WRAPPER_0("add_coalesce", createTritonGPUCoalesce);
   ADD_PASS_WRAPPER_0("add_optimize_thread_locality",
                      createTritonGPUOptimizeThreadLocality);
@@ -92,8 +90,16 @@ void init_triton_passes_ttgpuir(py::module &&m) {
   ADD_PASS_WRAPPER_0("add_fuse_nested_loops", createTritonGPUFuseNestedLoops);
   ADD_PASS_WRAPPER_0("add_coalesce_async_copy",
                      createTritonGPUCoalesceAsyncCopy);
-  ADD_PASS_WRAPPER_0("add_concurrency_sanitizer",
-                     createTritonInstrumentConcurrencySanitizer);
+  // ADD_PASS_WRAPPER_0("add_concurrency_sanitizer",
+  //                    createTritonInstrumentConcurrencySanitizer);
+
+  // std::unique_ptr<Pass> (*createPluginPass)() = reinterpret_cast<std::unique_ptr<Pass> (*)()>(createTritonInstrumentConcurrencySanitizerPlugin);
+  // m.def("add_concurrency_sanitizer_plugin", [=](mlir ::PassManager &pm) {
+  //   pm.addPass(createPluginPass());
+  // });
+
+
+
 
   std::string filename =
       mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
@@ -116,7 +122,7 @@ void init_triton_passes_ttgpuir(py::module &&m) {
   }
   void (*createPluginPass)(mlir ::PassManager *pm) = reinterpret_cast<void (*)(mlir ::PassManager *)>(getDetailsFn);
 
-  m.def("add_triton_plugin_pass", [=](mlir ::PassManager &pm) {
+  m.def("add_concurrency_sanitizer_plugin", [=](mlir ::PassManager &pm) {
     createPluginPass(&pm);
   });
 

@@ -33,11 +33,11 @@
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
-#include "triton/Dialect/TritonInstrument/IR/Dialect.h"
 #include "triton/Dialect/TritonNvidiaGPU/Transforms/TMAUtilities.h"
 #include "triton/Tools/Sys/GetEnv.hpp"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/SourceMgr.h"
+#include "mlir/Tools/Plugins/PassPlugin.h"
 
 namespace {
 
@@ -337,12 +337,30 @@ void init_triton_ir(py::module &&m) {
 
   m.def("load_dialects", [](MLIRContext &context) {
     DialectRegistry registry;
+
+
+    // -------------------------------------------------- //
+    std::string filename =
+         mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
+
+     std::string error;
+     auto library =
+         llvm::sys::DynamicLibrary::getPermanentLibrary(filename.c_str(), &error);
+
+     intptr_t getDetailsFn =
+         (intptr_t)library.getAddressOfSymbol("registerPluginDialect");
+
+     void (*registerPluginDialect)(mlir::DialectRegistry *registry) = reinterpret_cast<void (*)(mlir::DialectRegistry *registry)>(getDetailsFn);
+
+
+     registerPluginDialect(&registry);
     registry.insert<TritonDialect, ::mlir::triton::gpu::TritonGPUDialect,
-                    ::mlir::triton::instrument::TritonInstrumentDialect,
                     math::MathDialect, arith::ArithDialect, scf::SCFDialect,
                     ::mlir::gpu::GPUDialect, cf::ControlFlowDialect,
                     LLVM::LLVMDialect, mlir::ub::UBDialect,
                     mlir::triton::gluon::GluonDialect>();
+  // -------------------------------------------------- //
+
     mlir::LLVM::registerInlinerInterface(registry);
     registerBuiltinDialectTranslation(registry);
     registerLLVMDialectTranslation(registry);

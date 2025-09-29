@@ -316,7 +316,8 @@ class CUDABackend(BaseBackend):
         passes.common.add_sccp(pm)
         passes.common.add_cse(pm)
         passes.common.add_canonicalizer(pm)
-        passes.ttgpuir.add_triton_plugin_pass(pm) #TTGIR plugin pass
+        # passes.ttgpuir.add_triton_plugin_pass(pm) #TTGIR plugin pass
+        passes.ttgpuir.add_concurrency_sanitizer_plugin(pm)
 
         pm.run(mod, 'make_ttgir')
         metadata["cluster_dims"] = (cluster_info.clusterDimX, cluster_info.clusterDimY, cluster_info.clusterDimZ)
@@ -354,9 +355,9 @@ class CUDABackend(BaseBackend):
         passes.gluon.add_inliner(pm)
         nvidia.passes.ttgpuir.add_allocate_shared_memory_nv(pm, capability, ptx_version)
         nvidia.passes.ttnvgpuir.add_allocate_tensor_memory(pm)
-        if knobs.compilation.enable_experimental_consan:
-            # Call ConcurrencySanitizerPass here, before allocating global scratch memory but after allocating tensor and shared
-            passes.ttgpuir.add_concurrency_sanitizer(pm)
+        # if knobs.compilation.enable_experimental_consan:
+        #     # Call ConcurrencySanitizerPass here, before allocating global scratch memory but after allocating tensor and shared
+        #     passes.ttgpuir.add_concurrency_sanitizer(pm)
         passes.ttgpuir.add_allocate_global_scratch_memory(pm)
         nvidia.passes.ttnvgpuir.add_proxy_fence_insertion(pm, capability)
         # instrumentation point here so we can override IRs above (e.g., ttir and ttgir)
