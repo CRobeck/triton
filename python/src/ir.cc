@@ -799,7 +799,7 @@ void init_triton_ir(py::module &&m) {
 
   py::class_<OpBuilder::InsertPoint>(m, "InsertPoint", py::module_local());
 
-  py::class_<TritonOpBuilder>(m, "builder", py::module_local(),
+  py::class_<TritonOpBuilder> TritonOpBuilderBinding = py::class_<TritonOpBuilder>(m, "builder", py::module_local(),
                               py::dynamic_attr())
       .def(py::init<MLIRContext *>())
       .def("get_op_builder", &TritonOpBuilder::getBuilder, ret::reference)
@@ -1227,6 +1227,11 @@ void init_triton_ir(py::module &&m) {
            [](TritonOpBuilder &self, Value &lhs, Value &rhs) -> Value {
              return self.create<arith::AddFOp>(lhs, rhs);
            })
+      // .def("create_custom_fadd",
+      //      [](TritonOpBuilder &self, Value &lhs, Value &rhs) -> Value {
+      //        printf("Making custom op\n");
+      //        return self.create<arith::AddFOp>(lhs, rhs);
+      //      })
       .def("create_fsub",
            [](TritonOpBuilder &self, Value &lhs, Value &rhs) -> Value {
              return self.create<arith::SubFOp>(lhs, rhs);
@@ -1844,6 +1849,13 @@ void init_triton_ir(py::module &&m) {
              return self.create<MakeTensorDescOp>(base, shape, strides,
                                                   tensorShape, isSignedInteger,
                                                   paddingOption);
+           });
+  TritonOpBuilderBinding.def("create_custom_fadd",
+           [](TritonOpBuilder &self, Value &lhs, Value &rhs) -> Value {
+             printf("Making custom create_custom_fadd op\n");
+             std::string op = "arith::AddFOp";
+
+             return self.create<arith::AddFOp>(lhs, rhs);
            });
 
   py::class_<PassManager>(m, "pass_manager", py::module_local())
