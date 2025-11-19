@@ -2,6 +2,12 @@ set(LLVM_TARGET_DEFINITIONS Passes.td)
 mlir_tablegen(Passes.h.inc -gen-pass-decls -name Plugins)
 add_public_tablegen_target(TritonPluginsIncGen)
 
+set(LLVM_TARGET_DEFINITIONS CustomOps.td)
+mlir_tablegen(CustomOps.h.inc -gen-op-decls)
+mlir_tablegen(CustomOps.cpp.inc -gen-op-defs)
+mlir_tablegen(Dialect.h.inc -gen-dialect-decls -dialect=custom)
+add_public_tablegen_target(CustomTableGen)
+
 llvm_canonicalize_cmake_booleans(
   MLIR_ENABLE_BINDINGS_PYTHON
 )
@@ -12,6 +18,7 @@ set(TRITON_PLUGIN_PASSES
 
 set(TritonPluginsTestLib_SOURCES
     TritonPlugin.cpp
+    CustomOps.cpp
     )
 
 
@@ -50,6 +57,8 @@ foreach( plugin ${TRITON_PLUGIN_PASSES} )
     set_target_properties(${plugin} PROPERTIES
           LIBRARY_OUTPUT_DIRECTORY
       "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../plugins")
+    include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 
     target_compile_options(${plugin} PRIVATE -fvisibility=hidden)
 endforeach()

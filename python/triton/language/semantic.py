@@ -31,6 +31,9 @@ class TritonSemantic(Generic[TensorTy]):
     def __init__(self, builder):
         self.builder = builder
 
+    def getBuilder(self):
+        return self.builder
+
 # ===----------------------------------------------------------------------===##
 # Programming Model
 # ===----------------------------------------------------------------------===##
@@ -251,6 +254,7 @@ class TritonSemantic(Generic[TensorTy]):
                 self.binary_op_sanitize_overflow_impl(input, other, self.add)
             return self.tensor(self.builder.create_add(input.handle, other.handle), input.type)
         raise TypeError(f"unexpected type {input_scalar_ty}")
+
 
     def sub(self, input: TensorTy | numbers.Number, other: TensorTy | numbers.Number,
             sanitize_overflow: bool) -> TensorTy:
