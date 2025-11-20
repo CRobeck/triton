@@ -2,11 +2,11 @@ set(LLVM_TARGET_DEFINITIONS Passes.td)
 mlir_tablegen(Passes.h.inc -gen-pass-decls -name Plugins)
 add_public_tablegen_target(TritonPluginsIncGen)
 
-set(LLVM_TARGET_DEFINITIONS CustomOps.td)
-mlir_tablegen(CustomOps.h.inc -gen-op-decls)
-mlir_tablegen(CustomOps.cpp.inc -gen-op-defs)
-mlir_tablegen(Dialect.h.inc -gen-dialect-decls -dialect=custom)
-add_public_tablegen_target(CustomTableGen)
+set(LLVM_TARGET_DEFINITIONS PluginOps.td)
+mlir_tablegen(PluginOps.h.inc -gen-op-decls)
+mlir_tablegen(PluginOps.cpp.inc -gen-op-defs)
+mlir_tablegen(Dialect.h.inc -gen-dialect-decls -dialect=plugin)
+add_public_tablegen_target(PluginTableGen)
 
 llvm_canonicalize_cmake_booleans(
   MLIR_ENABLE_BINDINGS_PYTHON
@@ -18,7 +18,7 @@ set(TRITON_PLUGIN_PASSES
 
 set(TritonPluginsTestLib_SOURCES
     TritonPlugin.cpp
-    CustomOps.cpp
+    PluginOps.cpp
     )
 
 

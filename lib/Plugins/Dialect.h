@@ -1,5 +1,5 @@
-#ifndef CUSTOM_DIALECT_H_
-#define CUSTOM_DIALECT_H_
+#ifndef PLUGIN_DIALECT_H_
+#define PLUGIN_DIALECT_H_
 
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -8,6 +8,6 @@
 #include "Dialect.h.inc"
 
 #define GET_OP_CLASSES
-#include "CustomOps.h.inc"
+#include "PluginOps.h.inc"
 
-#endif // CUSTOM_DIALECT_H_
+#endif // PLUGIN_DIALECT_H_

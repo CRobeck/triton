@@ -1,4 +1,3 @@
-// #include "lib/Plugins/Dialect.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -9,4 +8,4 @@
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 
 #define GET_OP_CLASSES
-#include "CustomOps.h.inc"
+#include "PluginOps.h.inc"
