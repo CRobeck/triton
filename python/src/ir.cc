@@ -40,6 +40,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/SourceMgr.h"
 
+#include "nvidia/include/Dialect/NVGPU/IR/Dialect.h"
+
 namespace {
 
 namespace py = pybind11;
@@ -1857,6 +1859,38 @@ void init_triton_ir(py::module &&m) {
 
              return self.create<arith::AddFOp>(lhs, rhs);
            });
+
+  TritonOpBuilderBinding.def("create_nvgpu_loadacquire",
+           [](TritonOpBuilder &self, Value &ptr, Value &mask,
+              MemSemantic sem, MemSyncScope scope) -> Value {
+             Type dstType;
+             if (auto srcTensorType =
+                     dyn_cast<RankedTensorType>(ptr.getType())) {
+               Type dstElemType =
+                   cast<PointerType>(srcTensorType.getElementType())
+                       .getPointeeType();
+               dstType = srcTensorType.clone(dstElemType);
+             } else {
+               auto ptrType = cast<PointerType>(getElementTypeOrSelf(ptr));
+               dstType = ptrType.getPointeeType();
+             }
+    // Lower AtomicRMWOp to a ld.acquire if possible
+    std::unordered_map<triton::MemSyncScope, triton::nvgpu::MemSyncScope>
+        ScopeMap = {
+            {triton::MemSyncScope::CTA, triton::nvgpu::MemSyncScope::CTA},
+            {triton::MemSyncScope::GPU, triton::nvgpu::MemSyncScope::GPU},
+            {triton::MemSyncScope::SYSTEM,
+             triton::nvgpu::MemSyncScope::SYSTEM}};
+
+             auto newScope = ScopeMap[scope];
+             auto newSem = sem == triton::MemSemantic::ACQUIRE
+                         ? triton::nvgpu::MemSemantic::ACQUIRE
+                         : triton::nvgpu::MemSemantic::RELAXED;
+
+
+             return self.create<::mlir::triton::nvgpu::LoadAcquireOp>(dstType, ptr, mask, newSem, newScope);
+           });
+
 
   py::class_<PassManager>(m, "pass_manager", py::module_local())
       .def(py::init<MLIRContext *>())
