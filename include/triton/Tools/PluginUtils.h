@@ -1,6 +1,7 @@
 #ifndef TRITON_PLUGIN_UTILS_H
 #define TRITON_PLUGIN_UTILS_H
 
+#include "mlir/IR/Value.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Tools/Plugins/DialectPlugin.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -27,6 +28,7 @@ public:
   const std::string ENUMERATE_PASSES = "tritonEnumeratePluginPasses";
   const std::string ENUMERATE_DIALECTS = "tritonEnumeratePluginDialects";
   const std::string DIALECT_PLUGININFO = "tritonGetDialectPluginInfo";
+  const std::string ENUMERATE_CUSTOMOPS = "tritonEnumeratePluginCustomOps";
 
 private:
   using enumeratePyBindHandlesType =
@@ -48,6 +50,10 @@ private:
       std::function<::mlir::DialectPluginLibraryInfo(const char *)>;
   using dialectPluginInfoCType =
       ::mlir::DialectPluginLibraryInfo (*)(const char *);
+
+  const std::string INVOKE_CUSTOMOP = "tritonInvokePluginCustomOp";
+  using invokeCustomOpType = std::function<::mlir::Value(const char *, std::vector<::mlir::Value>&)>;
+  using invokeCustomOpCType = ::mlir::Value (*)(const char *, std::vector<::mlir::Value>&);
 
   llvm::Expected<intptr_t> getAddressOfSymbol(const std::string &symbol) const;
 
@@ -88,8 +94,14 @@ public:
   llvm::Expected<TritonPluginResult>
   getDialectHandles(std::vector<const char *> &handles);
 
+  llvm::Expected<TritonPluginResult>
+  getCustomOpHandles(std::vector<const char *> &handles);
+
   llvm::Expected<TritonPluginResult> addPass(mlir::PassManager *pm,
                                              const char *passHandle);
+
+  llvm::Expected<mlir::Value>
+  invokeCustomOp(std::vector<mlir::Value> &values, const char *customOpHandle);
 
   llvm::Expected<TritonPluginResult> registerPass(const char *passHandle);
 
@@ -101,9 +113,11 @@ private:
   mutable llvm::sys::DynamicLibrary library;
   enumeratePyBindHandlesType enumeratePassesAPI;
   enumeratePyBindHandlesType enumerateDialectsAPI;
+  enumeratePyBindHandlesType enumerateCustomOpAPI;
   addPassType addPassAPI;
   registerPassType registerPassAPI;
   dialectPluginInfoType dialectPluginInfoAPI;
+  invokeCustomOpType invokeCustomOpAPI;
   bool isLoaded = false;
 };
 

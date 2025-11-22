@@ -49,6 +49,9 @@ llvm::Error TritonPlugin::loadPlugin() {
   if (auto isValid = checkLibraryValid(error))
     return isValid;
 
+  auto enumerateCustomOpAPIOrErr =
+      getAPI<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
+          ENUMERATE_CUSTOMOPS);
   auto addPassAPIOrErr = getAPI<addPassType, addPassCType>(ADD_PASS);
   auto registerPassAPIOrErr =
       getAPI<registerPassType, registerPassCType>(REGISTER_PASS);
@@ -60,8 +63,12 @@ llvm::Error TritonPlugin::loadPlugin() {
   auto enumeratePassesAPIOrErr =
       getAPIOrNull<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
           ENUMERATE_PASSES);
+  auto invokeCustomOpAPIOrErr =
+      getAPI<invokeCustomOpType, invokeCustomOpCType>(INVOKE_CUSTOMOP);
 
   if (auto Err = enumeratePassesAPIOrErr.takeError())
+    return Err;
+  if (auto Err = enumerateCustomOpAPIOrErr.takeError())
     return Err;
   if (auto Err = addPassAPIOrErr.takeError())
     return Err;
@@ -71,13 +78,18 @@ llvm::Error TritonPlugin::loadPlugin() {
     return Err;
   if (auto Err = dialectPluginInfoAPIOrErr.takeError())
     return Err;
+  if (auto Err = invokeCustomOpAPIOrErr.takeError())
+    return Err;
 
+  enumeratePassesAPI = *enumeratePassesAPIOrErr;
+  enumerateCustomOpAPI = *enumerateCustomOpAPIOrErr;
   addPassAPI = *addPassAPIOrErr;
   registerPassAPI = *registerPassAPIOrErr;
   enumerateDialectsAPI = *enumerateDialectsAPIOrErr;
   dialectPluginInfoAPI = *dialectPluginInfoAPIOrErr;
   enumeratePassesAPI = *enumeratePassesAPIOrErr;
 
+  invokeCustomOpAPI = *invokeCustomOpAPIOrErr;
   isLoaded = true;
   return llvm::Error::success();
 }
@@ -130,6 +142,11 @@ TritonPlugin::getDialectHandles(std::vector<const char *> &dialectNames) {
 }
 
 llvm::Expected<TritonPluginResult>
+TritonPlugin::getCustomOpHandles(std::vector<const char *> &customOpNames) {
+  return enumeratePyBindHandles(enumerateCustomOpAPI, customOpNames);
+}
+
+llvm::Expected<TritonPluginResult>
 TritonPlugin::addPass(mlir::PassManager *pm, const char *passHandle) {
   if (auto Err = loadPlugin())
     return Err;
@@ -148,4 +165,11 @@ TritonPlugin::getDialectPluginInfo(const char *dialectName) {
   if (auto Err = loadPlugin())
     return Err;
   return dialectPluginInfoAPI(dialectName);
+}
+
+llvm::Expected<mlir::Value>
+TritonPlugin::invokeCustomOp(std::vector<mlir::Value> &values, const char *customOpHandle) {
+  if (auto Err = loadPlugin())
+    return Err;
+  return invokeCustomOpAPI(customOpHandle, values);
 }
