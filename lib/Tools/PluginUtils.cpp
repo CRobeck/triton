@@ -52,20 +52,31 @@ llvm::Error TritonPlugin::loadPlugin() {
   auto enumeratePassesAPIOrErr =
       getAPI<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
           ENUMERATE_PASSES);
+  auto enumerateCustomOpAPIOrErr =
+      getAPI<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
+          ENUMERATE_CUSTOMOPS);
   auto addPassAPIOrErr = getAPI<addPassType, addPassCType>(ADD_PASS);
   auto registerPassAPIOrErr =
       getAPI<registerPassType, registerPassCType>(REGISTER_PASS);
+  auto invokeCustomOpAPIOrErr =
+      getAPI<invokeCustomOpType, invokeCustomOpCType>(INVOKE_CUSTOMOP);
 
   if (auto Err = enumeratePassesAPIOrErr.takeError())
+    return Err;
+  if (auto Err = enumerateCustomOpAPIOrErr.takeError())
     return Err;
   if (auto Err = addPassAPIOrErr.takeError())
     return Err;
   if (auto Err = registerPassAPIOrErr.takeError())
     return Err;
+  if (auto Err = invokeCustomOpAPIOrErr.takeError())
+    return Err;
 
   enumeratePassesAPI = *enumeratePassesAPIOrErr;
+  enumerateCustomOpAPI = *enumerateCustomOpAPIOrErr;
   addPassAPI = *addPassAPIOrErr;
   registerPassAPI = *registerPassAPIOrErr;
+  invokeCustomOpAPI = *invokeCustomOpAPIOrErr;
   isLoaded = true;
   return llvm::Error::success();
 }
@@ -101,6 +112,11 @@ TritonPlugin::getPassHandles(std::vector<const char *> &passNames) {
 }
 
 llvm::Expected<TritonPluginResult>
+TritonPlugin::getCustomOpHandles(std::vector<const char *> &customOpNames) {
+  return enumeratePyBindHandles(enumerateCustomOpAPI, customOpNames);
+}
+
+llvm::Expected<TritonPluginResult>
 TritonPlugin::addPass(mlir::PassManager *pm, const char *passHandle) {
   if (auto Err = loadPlugin())
     return Err;
@@ -112,4 +128,11 @@ TritonPlugin::registerPass(const char *passHandle) {
   if (auto Err = loadPlugin())
     return Err;
   return checkAPIResult(registerPassAPI(passHandle), passHandle);
+}
+
+llvm::Expected<mlir::Value>
+TritonPlugin::invokeCustomOp(std::vector<mlir::Value> &values, const char *customOpHandle) {
+  if (auto Err = loadPlugin())
+    return Err;
+  return invokeCustomOpAPI(customOpHandle, values);
 }

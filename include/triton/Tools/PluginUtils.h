@@ -1,6 +1,7 @@
 #ifndef TRITON_PLUGIN_UTILS_H
 #define TRITON_PLUGIN_UTILS_H
 
+#include "mlir/IR/Value.h"
 #include "mlir/Pass/PassManager.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/Error.h"
@@ -28,6 +29,7 @@ private:
   // Put enumerate API names here, these can be involved with
   // enumeratePyBindHandles
   const std::string ENUMERATE_PASSES = "tritonEnumeratePluginPasses";
+  const std::string ENUMERATE_CUSTOMOPS = "tritonEnumeratePluginCustomOps";
 
   const std::string ADD_PASS = "tritonAddPluginPass";
   using addPassType =
@@ -38,6 +40,10 @@ private:
   const std::string REGISTER_PASS = "tritonRegisterPluginPass";
   using registerPassType = std::function<TritonPluginResult(const char *)>;
   using registerPassCType = TritonPluginResult (*)(const char *);
+
+  const std::string INVOKE_CUSTOMOP = "tritonInvokePluginCustomOp";
+  using invokeCustomOpType = std::function<::mlir::Value(const char *, std::vector<::mlir::Value>&)>;
+  using invokeCustomOpCType = ::mlir::Value (*)(const char *, std::vector<::mlir::Value>&);
 
   llvm::Error checkLibraryValid(const std::string &error) const;
 
@@ -67,8 +73,14 @@ public:
   llvm::Expected<TritonPluginResult>
   getPassHandles(std::vector<const char *> &handles);
 
+  llvm::Expected<TritonPluginResult>
+  getCustomOpHandles(std::vector<const char *> &handles);
+
   llvm::Expected<TritonPluginResult> addPass(mlir::PassManager *pm,
                                              const char *passHandle);
+
+  llvm::Expected<mlir::Value>
+  invokeCustomOp(std::vector<mlir::Value> &values, const char *customOpHandle);
 
   llvm::Expected<TritonPluginResult> registerPass(const char *passHandle);
 
@@ -76,8 +88,10 @@ private:
   std::string filename = "";
   mutable llvm::sys::DynamicLibrary library;
   enumeratePyBindHandlesType enumeratePassesAPI;
+  enumeratePyBindHandlesType enumerateCustomOpAPI;
   addPassType addPassAPI;
   registerPassType registerPassAPI;
+  invokeCustomOpType invokeCustomOpAPI;
   bool isLoaded = false;
 };
 
