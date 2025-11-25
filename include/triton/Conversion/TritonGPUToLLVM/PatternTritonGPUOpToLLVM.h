@@ -45,6 +45,11 @@ void populateMakeRangeOpToLLVMPattern(LLVMTypeConverter &typeConverter,
                                       RewritePatternSet &patterns,
                                       PatternBenefit benefit);
 
+void populatePluginRangeOpToLLVMPattern(LLVMTypeConverter &typeConverter,
+                                      const TargetInfoBase &targetInfo,
+                                      RewritePatternSet &patterns,
+                                      PatternBenefit benefit);
+
 void populateViewOpToLLVMPatterns(LLVMTypeConverter &typeConverter,
                                   RewritePatternSet &patterns,
                                   PatternBenefit benefit);

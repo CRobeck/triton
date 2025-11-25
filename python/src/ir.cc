@@ -1144,6 +1144,11 @@ void init_triton_ir(py::module &&m) {
              return self.create<MakeRangeOp>(retTy, start, end);
            })
 
+      .def("create_plugin_range",
+           [](TritonOpBuilder &self, Type retTy, int start, int end) -> Value {
+             return self.create<PluginRangeOp>(retTy, start, end);
+           })
+
       // Cast instructions
       // Conversions for custom FP types (FP8 and non-standard rounding modes)
       .def("create_fp_to_fp",

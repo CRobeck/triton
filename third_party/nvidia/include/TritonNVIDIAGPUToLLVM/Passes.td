@@ -29,6 +29,34 @@ def ConvertTritonGPUToLLVM : Pass<"convert-triton-gpu-to-llvm", "mlir::ModuleOp"
                "PTX version">,
     ];
 }
+
+def ConvertPluginTritonGPUToLLVM : Pass<"convert-plugin-triton-gpu-to-llvm", "mlir::ModuleOp"> {
+    let summary = "Convert TritonGPU to LLVM";
+    let description = [{
+
+    }];
+
+    let dependentDialects = ["mlir::arith::ArithDialect",
+                             "mlir::math::MathDialect",
+                             "mlir::gpu::GPUDialect",
+                             "mlir::scf::SCFDialect",
+                             "mlir::LLVM::LLVMDialect",
+                             "mlir::triton::TritonDialect",
+                             "mlir::triton::gpu::TritonGPUDialect",
+                             "mlir::triton::nvidia_gpu::TritonNvidiaGPUDialect",
+                             "mlir::triton::nvgpu::NVGPUDialect",
+                             "mlir::NVVM::NVVMDialect"];
+
+    let options = [
+        Option<"computeCapability", "compute-capability",
+               "int32_t", /*default*/"80",
+               "device compute capability">,
+        Option<"ptxVersion", "ptx-version",
+               "int32_t", /*default*/"80",
+               "PTX version">,
+    ];
+}
+
 def AllocateSharedMemoryNv : Pass<"allocate-shared-memory-nv", "mlir::ModuleOp"> {
   let summary = "Add metadata for shared memory allocation for Nvidia";
 

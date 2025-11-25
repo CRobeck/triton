@@ -37,6 +37,7 @@ from .core import (
     add,
     advance,
     arange,
+    plugin_arange,
     associative_scan,
     assume,
     atomic_add,

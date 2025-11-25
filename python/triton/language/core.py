@@ -1643,6 +1643,11 @@ def arange(start, end, _semantic=None):
     end = _unwrap_if_constexpr(end)
     return _semantic.arange(start, end)
 
+@builtin
+def plugin_arange(start, end, _semantic=None):
+    start = _unwrap_if_constexpr(start)
+    end = _unwrap_if_constexpr(end)
+    return _semantic.plugin_arange(start, end)
 
 arange.__doc__ = f"""
     Returns contiguous values within the half-open interval :code:`[start,

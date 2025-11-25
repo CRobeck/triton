@@ -874,6 +874,14 @@ def TT_MakeRangeOp : TT_Op<"make_range", [Pure]> {
     let hasVerifier = 1;
 }
 
+def TT_PluginRangeOp : TT_Op<"plugin_range", [Pure]> {
+    let arguments = (ins I32Attr:$start, I32Attr:$end);
+
+    let results = (outs TT_IntTensor:$result);
+
+    let assemblyFormat = "attr-dict `:` type($result)";
+}
+
 //
 // ElementwiseInlineAsm Op
 //

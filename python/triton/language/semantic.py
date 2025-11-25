@@ -593,6 +593,24 @@ class TritonSemantic(Generic[TensorTy]):
         ret_ty_ir = ret_ty.to_ir(self.builder)
         return self.tensor(self.builder.create_make_range(ret_ty_ir, start, end), ret_ty)
 
+    def plugin_arange(self, start: int, end: int, *, ret_ty: tl.block_type = None) -> TensorTy:
+        if not isinstance(start, int) or not isinstance(end, int):
+            raise ValueError("arange's arguments must be of type tl.constexpr")
+        is_start_int64 = bool(start >> 32)
+        is_end_int64 = bool(end >> 32)
+        if is_start_int64 or is_end_int64:
+            raise ValueError("arange must fit in int32")
+        if end <= start:
+            raise ValueError("arange's end argument must be greater than the start argument")
+        range = end - start
+        if (range & (range - 1)) != 0:
+            raise ValueError("arange's range must be a power of 2")
+        shape = [range]
+        if ret_ty is None:
+            ret_ty = tl.block_type(tl.int32, shape)
+        ret_ty_ir = ret_ty.to_ir(self.builder)
+        return self.tensor(self.builder.create_plugin_range(ret_ty_ir, start, end), ret_ty)
+
     def scalar_constant(self, value, dtype: tl.dtype) -> TensorTy:
         # scalar
         if dtype is None:

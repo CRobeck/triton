@@ -27,6 +27,7 @@
 namespace mlir {
 namespace triton {
 #define GEN_PASS_DEF_CONVERTTRITONGPUTOLLVM
+#define GEN_PASS_DEF_CONVERTPLUGINTRITONGPUTOLLVM
 #include "TritonNVIDIAGPUToLLVM/Passes.h.inc"
 } // namespace triton
 } // namespace mlir
@@ -169,6 +170,9 @@ struct ConvertTritonGPUToLLVM
         typeConverter, patterns, benefit);
     mlir::triton::populateMakeRangeOpToLLVMPattern(typeConverter, targetInfo,
                                                    patterns, benefit);
+    //Plugins
+    mlir::triton::populatePluginRangeOpToLLVMPattern(typeConverter, targetInfo,
+                                                   patterns, benefit);
     mlir::triton::NVIDIA::populateTCGen5MMAOpToLLVMPattern(typeConverter,
                                                            patterns, benefit);
     mlir::triton::NVIDIA::populateFp4ToFpToLLVMPatterns(typeConverter, patterns,
@@ -227,6 +231,34 @@ private:
   }
 };
 
+struct ConvertPluginTritonGPUToLLVM
+    : public triton::impl::ConvertPluginTritonGPUToLLVMBase<ConvertPluginTritonGPUToLLVM> {
+  using ConvertPluginTritonGPUToLLVMBase::ConvertPluginTritonGPUToLLVMBase;
+
+  ConvertPluginTritonGPUToLLVM(int32_t computeCapability, int32_t ptxVersion)
+      : ConvertPluginTritonGPUToLLVMBase({computeCapability, ptxVersion}) {}
+
+  void runOnOperation() override {
+  MLIRContext *context = &getContext();
+    ModuleOp mod = getOperation();
+    TargetInfo targetInfo(computeCapability, ptxVersion);
+
+
+    // mlir::LowerToLLVMOptions option(context);
+    // TritonGPUToLLVMTypeConverter typeConverter(context, option, targetInfo);
+
+    // RewritePatternSet patterns(context);
+    // int benefit = patternBenefitPrioritizeOverLLVMConversions;
+
+    // mlir::triton::populatePluginRangeOpToLLVMPattern(typeConverter, targetInfo,
+    //                                            patterns, benefit);
+    // TritonLLVMConversionTarget convTarget(*context);
+    // if (failed(applyPartialConversion(mod, convTarget, std::move(patterns))))
+    //   return signalPassFailure();
+  }
+};
+
+
 } // anonymous namespace
 
 namespace mlir {
@@ -243,6 +275,13 @@ std::unique_ptr<OperationPass<ModuleOp>>
 createConvertTritonGPUToLLVMPass(int32_t computeCapability,
                                  int32_t ptxVersion) {
   return std::make_unique<ConvertTritonGPUToLLVM>(computeCapability,
+                                                  ptxVersion);
+}
+
+std::unique_ptr<OperationPass<ModuleOp>>
+createConvertPluginTritonGPUToLLVMPass(int32_t computeCapability,
+                                 int32_t ptxVersion) {
+  return std::make_unique<ConvertPluginTritonGPUToLLVM>(computeCapability,
                                                   ptxVersion);
 }
 
