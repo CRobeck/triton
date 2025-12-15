@@ -49,34 +49,40 @@ llvm::Error TritonPlugin::loadPlugin() {
   if (auto isValid = checkLibraryValid(error))
     return isValid;
 
-  auto addPassAPIOrErr = getAPI<addPassType, addPassCType>(ADD_PASS);
-  auto registerPassAPIOrErr =
-      getAPI<registerPassType, registerPassCType>(REGISTER_PASS);
-  auto dialectPluginInfoAPIOrErr =
-      getAPI<dialectPluginInfoType, dialectPluginInfoCType>(DIALECT_PLUGININFO);
-  auto enumerateDialectsAPIOrErr =
-      getAPIOrNull<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
-          ENUMERATE_DIALECTS);
-  auto enumeratePassesAPIOrErr =
-      getAPIOrNull<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
+  if ((intptr_t)library.getAddressOfSymbol(ENUMERATE_PASSES.c_str())) {
+    auto enumeratePassesAPIOrErr =
+      getAPI<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
           ENUMERATE_PASSES);
+    auto addPassAPIOrErr = getAPI<addPassType, addPassCType>(ADD_PASS);
+    auto registerPassAPIOrErr =
+      getAPI<registerPassType, registerPassCType>(REGISTER_PASS);
 
-  if (auto Err = enumeratePassesAPIOrErr.takeError())
-    return Err;
-  if (auto Err = addPassAPIOrErr.takeError())
-    return Err;
-  if (auto Err = registerPassAPIOrErr.takeError())
-    return Err;
-  if (auto Err = enumerateDialectsAPIOrErr.takeError())
-    return Err;
-  if (auto Err = dialectPluginInfoAPIOrErr.takeError())
-    return Err;
+    if (auto Err = enumeratePassesAPIOrErr.takeError())
+      return Err;
+    if (auto Err = addPassAPIOrErr.takeError())
+      return Err;
+    if (auto Err = registerPassAPIOrErr.takeError())
+      return Err;
 
-  addPassAPI = *addPassAPIOrErr;
-  registerPassAPI = *registerPassAPIOrErr;
-  enumerateDialectsAPI = *enumerateDialectsAPIOrErr;
-  dialectPluginInfoAPI = *dialectPluginInfoAPIOrErr;
-  enumeratePassesAPI = *enumeratePassesAPIOrErr;
+    addPassAPI = *addPassAPIOrErr;
+    registerPassAPI = *registerPassAPIOrErr;
+    enumeratePassesAPI = *enumeratePassesAPIOrErr;
+  }
+
+  if ((intptr_t)library.getAddressOfSymbol(ENUMERATE_DIALECTS.c_str())) {
+    auto enumerateDialectsAPIOrErr =
+      getAPI<enumeratePyBindHandlesType, enumeratePyBindHandlesCType>(
+          ENUMERATE_DIALECTS);
+    auto dialectPluginInfoAPIOrErr =
+      getAPI<dialectPluginInfoType, dialectPluginInfoCType>(DIALECT_PLUGININFO);
+
+    if (auto Err = enumerateDialectsAPIOrErr.takeError())
+      return Err;
+    if (auto Err = dialectPluginInfoAPIOrErr.takeError())
+      return Err;
+    enumerateDialectsAPI = *enumerateDialectsAPIOrErr;
+    dialectPluginInfoAPI = *dialectPluginInfoAPIOrErr;
+  }
 
   isLoaded = true;
   return llvm::Error::success();
