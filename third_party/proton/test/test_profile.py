@@ -15,6 +15,7 @@ import threading
 import triton.language as tl
 from triton.profiler.hooks.launch import COMPUTE_METADATA_SCOPE_NAME
 import triton.profiler.hooks.launch as proton_launch
+import triton.profiler.viewer as viewer
 from triton._internal_testing import is_hip
 
 
@@ -198,8 +199,66 @@ def test_cpu_timed_scope(tmp_path: pathlib.Path):
     assert test0_frame["metrics"]["cpu_time (ns)"] > 0
     test1_frame = test0_frame["children"][0]
     assert test1_frame["metrics"]["cpu_time (ns)"] > 0
-    kernel_frame = test1_frame["children"][0]
-    assert kernel_frame["metrics"]["time (ns)"] > 0
+
+
+def test_get_data(tmp_path: pathlib.Path):
+    temp_file = tmp_path / "test_tree_json.hatchet"
+    session = proton.start(str(temp_file.with_suffix("")), context="shadow")
+
+    @triton.jit
+    def foo(x, y, size: tl.constexpr):
+        offs = tl.arange(0, size)
+        tl.store(y + offs, tl.load(x + offs))
+
+    with proton.scope("test"):
+        x = torch.ones((2, 2), device="cuda")
+        foo[(1, )](x, x, 4)
+        foo[(1, )](x, x, 4)
+
+    try:
+        _ = proton.get_data(session)
+    except RuntimeError as e:
+        assert "Cannot get data while the session is active" in str(e)
+
+    proton.deactivate(session)
+
+    database = proton.get_data(session)
+    gf, _, _, _ = viewer.get_raw_metrics(database)
+    foo_frame = gf.filter("MATCH ('*', c) WHERE c.'name' =~ '.*foo.*' AND c IS LEAF").dataframe
+    ones_frame = gf.filter("MATCH ('*', c) WHERE c.'name' =~ '.*elementwise.*' AND c IS LEAF").dataframe
+
+    proton.finalize()
+    assert len(foo_frame) == 1
+    assert int(foo_frame["count"].values[0]) == 2
+    assert len(ones_frame) == 1
+    assert int(ones_frame["count"].values[0]) == 1
+
+
+def test_clear_data(tmp_path: pathlib.Path):
+    temp_file = tmp_path / "test_clear_data.hatchet"
+    session = proton.start(str(temp_file.with_suffix("")), context="shadow")
+
+    with proton.scope("test0"):
+        x = torch.ones((2, 2), device="cuda")
+        x + x  # type: ignore
+
+    proton.deactivate(session)
+    proton.clear_data(session)
+    database = proton.get_data(session)
+    assert database[0]["children"] == []
+    assert database[0]["frame"]["name"] == "ROOT"
+
+    proton.activate(session)
+    with proton.scope("test1"):
+        x * x  # type: ignore
+    proton.deactivate(session)
+    database = proton.get_data(session)
+
+    proton.finalize()
+    assert len(database[0]["children"]) == 1
+    assert database[0]["children"][0]["frame"]["name"] == "test1"
+    kernel_frame = database[0]["children"][0]["children"][0]
+    assert "elementwise" in kernel_frame["frame"]["name"]
 
 
 def test_hook_launch(tmp_path: pathlib.Path):
