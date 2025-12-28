@@ -1,6 +1,8 @@
 #include "DialectPlugin/DialectPluginDialect.h"
 #include "DialectPlugin/DialectPluginOps.h"
 #include "DialectPlugin/DialectPluginTypes.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "triton/Tools/PluginUtils.h"
 
 using namespace mlir;
 using namespace mlir::triton::plugin;
@@ -22,9 +24,9 @@ void DialectPluginDialect::initialize() {
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/InitAllDialects.h"
 #include "mlir/Tools/Plugins/DialectPlugin.h"
-
 #include "DialectPlugin/DialectPluginDialect.h"
 #include "DialectPlugin/DialectPluginPasses.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Tools/Plugins/PassPlugin.h"
 #include "triton/Tools/PluginUtils.h"
 #include "llvm/Config/llvm-config.h"
@@ -92,6 +94,27 @@ tritonEnumeratePluginDialects(uint32_t *dialectCount,
   if (!dialectNames)
     return TP_SUCCESS;
   dialectNames[0] = "DialectPlugin";
+  return TP_SUCCESS;
+}
+
+TRITON_PLUGIN_API
+tritonEnumeratePluginCustomOps(uint32_t *opCount, const char **opNames) {
+  if (!opCount)
+    return TP_GENERIC_FAILURE;
+  *opCount = 1;
+  if (!opNames)
+    return TP_SUCCESS;
+  opNames[0] = "create_custom_fadd2";
+  return TP_SUCCESS;
+}
+
+TRITON_PLUGIN_API
+tritonAddPluginCustomOp(const char *opName, TritonOpBuilder &self,
+                        void **operands) {
+  ::mlir::Value *dst = static_cast<::mlir::Value*>(operands[0]);
+  ::mlir::Value *lhs = static_cast<::mlir::Value*>(operands[1]);
+  ::mlir::Value *rhs = static_cast<::mlir::Value*>(operands[2]);
+  *dst = self.create<::mlir::arith::AddFOp>(*lhs, *rhs);
   return TP_SUCCESS;
 }
 

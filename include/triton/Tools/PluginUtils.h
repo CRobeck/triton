@@ -54,6 +54,7 @@ private:
 
   using AddCustomOpType = std::function<TritonPluginResult(
       const char *, TritonOpBuilder &self, void **)>;
+
   using AddCustomOpCType = TritonPluginResult (*)(
       const char *, TritonOpBuilder &self, void **);
 

@@ -11,6 +11,7 @@ add_mlir_dialect_library(MLIRDialectPlugin
 
         ADDITIONAL_HEADER_DIRS
         ${PROJECT_SOURCE_DIR}/plugins/include/
+        ${PROJECT_BINARY_DIR}/lib
 
         DEPENDS
         TritonIR
@@ -23,6 +24,7 @@ add_mlir_dialect_library(MLIRDialectPlugin
         MLIRPass
         LLVMSupport
         MLIRSupport
+        MLIRArithDialect
         TritonNVIDIAGPUToLLVM
         "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>"
         )

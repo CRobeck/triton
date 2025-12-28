@@ -34,6 +34,7 @@ foreach( plugin ${TRITON_PLUGIN_PASSES} )
         MLIRPass
         LLVMSupport
         MLIRSupport
+        MLIRArithDialect
         "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>"
         )
 

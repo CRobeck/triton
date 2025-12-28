@@ -50,7 +50,7 @@ def custom_add(x, y, sanitize_overflow: tl.constexpr = True, _semantic=None):
     x = _unwrap_if_constexpr(x)
     y = _unwrap_if_constexpr(y)
     builder = _semantic.getBuilder()
-    return tl.tensor(builder.create_custom_fadd(x.handle, y.handle), x.type)
+    return tl.tensor(builder.create_custom_fadd2(x.handle, y.handle), x.type)
 
 DEVICE = triton.runtime.driver.active.get_active_torch_device()
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     output_triton = torch.empty_like(x)
     n_elements = output_triton.numel()
     grid = lambda meta: (triton.cdiv(n_elements, meta['BLOCK_SIZE']), )
-    knobs.runtime.add_stages_inspection_hook = inspect_stages_hook_dialect
+    # knobs.runtime.add_stages_inspection_hook = inspect_stages_hook_dialect
     add_kernel[grid](x, y, output_triton, n_elements, BLOCK_SIZE=1024)
 
     print(f'The maximum difference between torch and custom triton op is '
