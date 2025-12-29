@@ -115,8 +115,10 @@ tritonAddPluginCustomOp(const char *opName, TritonOpBuilder &self,
   ::mlir::Value *lhs = static_cast<::mlir::Value*>(operands[1]);
   ::mlir::Value *rhs = static_cast<::mlir::Value*>(operands[2]);
 
-  // ::mlir::Value *lhs = static_cast<::mlir::Value*>(self.getBuilder().create<arith::ConstantIntOp>(self.getBuilder().getI1Type(), 1).getResult());
-  // ::mlir::Value temp = self.create<mlir::triton::plugin::MagicOp>(one);
+  ::mlir::Value one = Value(self.create<arith::ConstantFloatOp>(
+                 self.getBuilder().getF32Type(), llvm::APFloat(1.0f)));
+  ::mlir::Value temp = self.create<mlir::triton::plugin::MagicOp>(one);
+
   TypedAttr splat = SplatElementsAttr::get(cast<ShapedType>(lhs->getType()), 1.0f);
   ::mlir::Value ones = Value(self.create<arith::ConstantOp>(
                  lhs->getType(), splat));
