@@ -27,8 +27,8 @@ def DialectPlugin_MagicOp : DialectPlugin_Op<"magic", [Pure,
         ```
     }];
 
-    let arguments = (ins I32:$input);
-    let results = (outs I32:$res);
+    let arguments = (ins F32:$input);
+    let results = (outs F32:$res);
 
     let assemblyFormat = [{
         $input attr-dict `:` type($input)

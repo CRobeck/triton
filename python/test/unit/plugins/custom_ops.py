@@ -104,7 +104,8 @@ if __name__ == "__main__":
     n_elements = output_triton.numel()
     grid = lambda meta: (triton.cdiv(n_elements, meta['BLOCK_SIZE']), )
     knobs.runtime.add_stages_inspection_hook = inspect_stages_hook_dialect
-    add_kernel[grid](x, y, output_triton, n_elements, BLOCK_SIZE=1024)
+    h = add_kernel[grid](x, y, output_triton, n_elements, BLOCK_SIZE=1024)
+    # print(h.asm["ttgir"])
 
     print(f'The maximum difference between torch and custom triton op is '
           f'{torch.max(torch.abs(output_torch - output_triton))}')
