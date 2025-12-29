@@ -115,6 +115,7 @@ tritonAddPluginCustomOp(const char *opName, TritonOpBuilder &self,
   ::mlir::Value *lhs = static_cast<::mlir::Value*>(operands[1]);
   ::mlir::Value *rhs = static_cast<::mlir::Value*>(operands[2]);
   *dst = self.create<::mlir::arith::AddFOp>(*lhs, *rhs);
+  // *dst = self.create<mlir::triton::plugin::MagicOp>(*lhs);
   return TP_SUCCESS;
 }
 
