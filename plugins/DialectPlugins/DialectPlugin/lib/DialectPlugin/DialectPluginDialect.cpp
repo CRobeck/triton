@@ -123,8 +123,15 @@ tritonAddPluginCustomOp(const char *opName, TritonOpBuilder &self,
   ::mlir::Value temp = Value(self.create<mlir::triton::plugin::MagicOp>(one));
   // Get the number of elements in the tensor
   // auto shapedType = cast<ShapedType>(lhs->getType());
-  auto tensorType = cast<RankedTensorType>(lhs->getType());
+  // auto tensorShape = cast<RankedTensorType>(lhs->getType());
+  // auto ptrType = cast<triton::PointerType>(lhs->getType());
+  // auto shapedType = mlir::cast<mlir::ShapedType>(lhs->getType());
+  // auto ptrTensorType = RankedTensorType::get(shapedType.getShape(), self.getBuilder().getF32Type());
+
   // int64_t numElements = tensorType.getNumElements();
+  // MLIRContext *ctx = self.getContext();
+  // unsigned int warps = lookupNumWarps(self.
+  // unsigned int numCTAs = lookupNumCTAs(region->getParentOp());
   Value broadcastedSclar = self.create<tensor::SplatOp>(lhs->getType(), temp);
 
   llvm::errs() << "temp: " << temp << "\n";

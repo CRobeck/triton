@@ -48,15 +48,18 @@ struct PluginMagicOpConversion
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
     auto b = TritonLLVMOpBuilder(loc, rewriter);
+    auto mod = op->getParentOfType<ModuleOp>();
+    int numCTAs = triton::gpu::TritonGPUDialect::getNumCTAs(mod);
     // auto a = op.getInput();
-    Value tid = ::mlir::gpu::ThreadIdOp::create(rewriter, loc,
-                                                ::mlir::gpu::Dimension::x);
-    ::mlir::Value one = arith::ConstantFloatOp::create(rewriter, loc, f32_ty, llvm::APFloat(1.0f));
+    // Value tid = ::mlir::gpu::ThreadIdOp::create(rewriter, loc,
+    //                                             ::mlir::gpu::Dimension::x);
+    // Value threadId = arith::IndexCastOp::create(rewriter, loc, i32_ty, tid);
+    auto newOp = arith::UIToFPOp::create(rewriter, loc, f32_ty, b.i32_val(numCTAs));
+    // ::mlir::Value one = arith::ConstantFloatOp::create(rewriter, loc, f32_ty, llvm::APFloat(1.0f));
 
-    // tid = arith::UIToFPOp::create(rewriter, loc, f32_ty, tid);
     // Value threadId = arith::IndexCastOp::create(rewriter, loc, i32_ty, tid);
     // auto newOp = b.add(a, threadId);
-    rewriter.replaceOp(op, one);
+    rewriter.replaceOp(op, newOp);
     return success();
   }
 
