@@ -1,7 +1,9 @@
 #include "DialectPlugin/DialectPluginDialect.h"
 #include "DialectPlugin/DialectPluginOps.h"
 #include "DialectPlugin/DialectPluginTypes.h"
+#include "mlir/Dialect/Vector/IR/VectorOps.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "triton/Conversion/TritonGPUToLLVM/Utility.h"
 #include "triton/Tools/PluginUtils.h"
 
 using namespace mlir;
@@ -117,13 +119,28 @@ tritonAddPluginCustomOp(const char *opName, TritonOpBuilder &self,
 
   ::mlir::Value one = Value(self.create<arith::ConstantFloatOp>(
                  self.getBuilder().getF32Type(), llvm::APFloat(1.0f)));
-  ::mlir::Value temp = self.create<mlir::triton::plugin::MagicOp>(one);
 
-  TypedAttr splat = SplatElementsAttr::get(cast<ShapedType>(lhs->getType()), 1.0f);
-  ::mlir::Value ones = Value(self.create<arith::ConstantOp>(
-                 lhs->getType(), splat));
+  ::mlir::Value temp = Value(self.create<mlir::triton::plugin::MagicOp>(one));
+  // Get the number of elements in the tensor
+  // auto shapedType = cast<ShapedType>(lhs->getType());
+  auto tensorType = cast<RankedTensorType>(lhs->getType());
+  // int64_t numElements = tensorType.getNumElements();
+  Value broadcastedSclar = self.create<tensor::SplatOp>(lhs->getType(), temp);
+
+  llvm::errs() << "temp: " << temp << "\n";
+  llvm::errs() << "broadcastedSclar: " << broadcastedSclar << "\n";
+
+
+  // TypedAttr splat = SplatElementsAttr::get(cast<ShapedType>(lhs->getType()), 1.0f);
+  // ::mlir::Value ones = Value(self.create<arith::ConstantOp>(
+  //                lhs->getType(), splat));
+
+
+  // llvm::errs() << "ones: " << ones << "\n";
+
+// int numElements = cast<ShapedType>(lhs->getType()).getShape()[0];
   // llvm::errs() << lhs->getType() << "\n";
-  *dst = self.create<::mlir::arith::AddFOp>(*lhs, ones);
+  *dst = self.create<::mlir::arith::AddFOp>(*lhs, broadcastedSclar);
 
   return TP_SUCCESS;
 }
@@ -133,6 +150,8 @@ tritonGetDialectPluginInfo(const char *name) {
   return {MLIR_PLUGIN_API_VERSION, "DialectPlugin", LLVM_VERSION_STRING,
           [](DialectRegistry *registry) {
             registry->insert<mlir::triton::plugin::DialectPluginDialect>();
+            registry->insert<mlir::tensor::TensorDialect>();
+            registry->insert<mlir::vector::VectorDialect>();
             mlir::triton::plugin::registerpluginPasses();
           }};
 }

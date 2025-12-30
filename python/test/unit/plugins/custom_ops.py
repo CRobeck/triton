@@ -67,15 +67,15 @@ def inspect_stages_hook_dialect(self=None, stages=None, options=None, language=N
     if all(arg is None for arg in (stages, options, language, capability)):
         return get_key(), get_hash()
 
-    def make_ttgir_wrapper(mod, metadata, opt, capability):
-        mod = self.make_ttgir(mod, metadata, opt, capability)
+    def make_ttir_wrapper(mod, metadata, opt, capability):
+        mod = self.make_ttir(mod, metadata, opt, capability)
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
         passes.plugin.plugingpu_conversion(pm)
-        pm.run(mod, 'make_ttgir_plugin')
+        pm.run(mod, 'make_ttir_plugin')
         return mod
 
-    stages["ttgir"] = lambda src, metadata: make_ttgir_wrapper(src, metadata, options, capability)
+    stages["ttir"] = lambda src, metadata: make_ttir_wrapper(src, metadata, options, capability)
 
     return get_key(), get_hash()
 
@@ -98,7 +98,7 @@ def add_kernel(x_ptr,
 if __name__ == "__main__":
     size = 98432
     x = torch.rand(size, device=DEVICE, dtype=torch.float32)
-    y = torch.rand(size, device=DEVICE, dtype=torch.float32)
+    y = torch.ones(size, device=DEVICE, dtype=torch.float32)
     output_torch = x + y
     output_triton = torch.empty_like(x)
     n_elements = output_triton.numel()

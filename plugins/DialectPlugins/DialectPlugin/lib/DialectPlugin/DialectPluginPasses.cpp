@@ -51,10 +51,12 @@ struct PluginMagicOpConversion
     // auto a = op.getInput();
     Value tid = ::mlir::gpu::ThreadIdOp::create(rewriter, loc,
                                                 ::mlir::gpu::Dimension::x);
-    tid = arith::UIToFPOp::create(rewriter, loc, f32_ty, tid);
+    ::mlir::Value one = arith::ConstantFloatOp::create(rewriter, loc, f32_ty, llvm::APFloat(1.0f));
+
+    // tid = arith::UIToFPOp::create(rewriter, loc, f32_ty, tid);
     // Value threadId = arith::IndexCastOp::create(rewriter, loc, i32_ty, tid);
     // auto newOp = b.add(a, threadId);
-    rewriter.replaceOp(op, tid);
+    rewriter.replaceOp(op, one);
     return success();
   }
 
