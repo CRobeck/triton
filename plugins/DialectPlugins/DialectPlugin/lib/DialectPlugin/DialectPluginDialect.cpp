@@ -115,38 +115,16 @@ tritonAddPluginCustomOp(const char *opName, TritonOpBuilder &self,
                         void **operands) {
   ::mlir::Value *dst = static_cast<::mlir::Value*>(operands[0]);
   ::mlir::Value *lhs = static_cast<::mlir::Value*>(operands[1]);
-  ::mlir::Value *rhs = static_cast<::mlir::Value*>(operands[2]);
 
   ::mlir::Value one = Value(self.create<arith::ConstantFloatOp>(
                  self.getBuilder().getF32Type(), llvm::APFloat(1.0f)));
 
   ::mlir::Value temp = Value(self.create<mlir::triton::plugin::MagicOp>(one));
-  // Get the number of elements in the tensor
-  // auto shapedType = cast<ShapedType>(lhs->getType());
-  // auto tensorShape = cast<RankedTensorType>(lhs->getType());
-  // auto ptrType = cast<triton::PointerType>(lhs->getType());
-  // auto shapedType = mlir::cast<mlir::ShapedType>(lhs->getType());
-  // auto ptrTensorType = RankedTensorType::get(shapedType.getShape(), self.getBuilder().getF32Type());
 
-  // int64_t numElements = tensorType.getNumElements();
-  // MLIRContext *ctx = self.getContext();
-  // unsigned int warps = lookupNumWarps(self.
-  // unsigned int numCTAs = lookupNumCTAs(region->getParentOp());
   Value broadcastedSclar = self.create<tensor::SplatOp>(lhs->getType(), temp);
 
-  llvm::errs() << "temp: " << temp << "\n";
-  llvm::errs() << "broadcastedSclar: " << broadcastedSclar << "\n";
-
-
-  // TypedAttr splat = SplatElementsAttr::get(cast<ShapedType>(lhs->getType()), 1.0f);
-  // ::mlir::Value ones = Value(self.create<arith::ConstantOp>(
-  //                lhs->getType(), splat));
-
-
-  // llvm::errs() << "ones: " << ones << "\n";
-
-// int numElements = cast<ShapedType>(lhs->getType()).getShape()[0];
-  // llvm::errs() << lhs->getType() << "\n";
+  // llvm::errs() << "temp: " << temp << "\n";
+  // llvm::errs() << "broadcastedSclar: " << broadcastedSclar << "\n";
   *dst = self.create<::mlir::arith::AddFOp>(*lhs, broadcastedSclar);
 
   return TP_SUCCESS;

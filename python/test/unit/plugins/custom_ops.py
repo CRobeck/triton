@@ -50,11 +50,10 @@ def builtin(fn: T) -> T:
     return wrapper
 
 @builtin
-def custom_add(x, y, sanitize_overflow: tl.constexpr = True, _semantic=None):
+def custom_add(x, sanitize_overflow: tl.constexpr = True, _semantic=None):
     x = _unwrap_if_constexpr(x)
-    y = _unwrap_if_constexpr(y)
     builder = _semantic.getBuilder()
-    return tl.tensor(builder.create_custom_fadd2(x.handle, y.handle), x.type)
+    return tl.tensor(builder.create_custom_fadd2(x.handle), x.type)
 
 DEVICE = triton.runtime.driver.active.get_active_torch_device()
 
@@ -76,8 +75,8 @@ def inspect_stages_hook(self=None, stages=None, options=None, language=None, cap
     stage_src = 'from triton._C.libtriton import ir, passes, llvm, amd, nvidia\n' + stage_src
     # Inject plugin pass right after loop unroll in the dynamically loaded stage source
     stage_src = stage_src.replace(
-        "passes.ttgpuir.add_coalesce(pm)",
-        "passes.ttgpuir.add_coalesce(pm)\n    passes.plugin.plugingpu_conversion(pm)\n"
+        "passes.ttgpuir.add_remove_layout_conversions(pm)",
+        "passes.ttgpuir.add_remove_layout_conversions(pm)\n    passes.plugin.plugingpu_conversion(pm)\n"
     )
     # print(stage_src)
     exec(stage_src, module.__dict__)
@@ -97,21 +96,21 @@ def add_kernel(x_ptr,
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
     x = tl.load(x_ptr + offsets, mask=mask)
-    y = tl.load(y_ptr + offsets, mask=mask)
-    output = custom_add(x, y)
+    output = custom_add(x)
     tl.store(output_ptr + offsets, output, mask=mask)
 
 if __name__ == "__main__":
-    size = 98432
-    x = torch.rand(size, device=DEVICE, dtype=torch.float32)
+    size = 256
+    x = torch.zeros(size, device=DEVICE, dtype=torch.float32)
     y = torch.ones(size, device=DEVICE, dtype=torch.float32)
-    output_torch = x + y
+    # output_torch = x + y
     output_triton = torch.empty_like(x)
     n_elements = output_triton.numel()
     grid = lambda meta: (triton.cdiv(n_elements, meta['BLOCK_SIZE']), )
     knobs.runtime.add_stages_inspection_hook = inspect_stages_hook
     h = add_kernel[grid](x, y, output_triton, n_elements, BLOCK_SIZE=1024)
+    print(output_triton)
     # print(h.asm["ttgir"])
 
-    print(f'The maximum difference between torch and custom triton op is '
-          f'{torch.max(torch.abs(output_torch - output_triton))}')
+    # print(f'The maximum difference between torch and custom triton op is '
+    #       f'{torch.max(torch.abs(output_torch - output_triton))}')

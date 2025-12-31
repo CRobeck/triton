@@ -49,17 +49,16 @@ struct PluginMagicOpConversion
     auto loc = op.getLoc();
     auto b = TritonLLVMOpBuilder(loc, rewriter);
     auto mod = op->getParentOfType<ModuleOp>();
-    int numCTAs = triton::gpu::TritonGPUDialect::getNumCTAs(mod);
-    // auto a = op.getInput();
-    // Value tid = ::mlir::gpu::ThreadIdOp::create(rewriter, loc,
-    //                                             ::mlir::gpu::Dimension::x);
-    // Value threadId = arith::IndexCastOp::create(rewriter, loc, i32_ty, tid);
-    auto newOp = arith::UIToFPOp::create(rewriter, loc, f32_ty, b.i32_val(numCTAs));
-    // ::mlir::Value one = arith::ConstantFloatOp::create(rewriter, loc, f32_ty, llvm::APFloat(1.0f));
+    auto ctx = mod->getContext();
 
-    // Value threadId = arith::IndexCastOp::create(rewriter, loc, i32_ty, tid);
-    // auto newOp = b.add(a, threadId);
+    int numCTAs = triton::gpu::TritonGPUDialect::getNumCTAs(mod);
+    int threadsPerWarp = triton::gpu::TritonGPUDialect::getThreadsPerWarp(mod);
+    int numWarps = triton::gpu::lookupNumWarps(mod);
+    int totalNumThreads = numCTAs * numWarps * threadsPerWarp;
+
+    auto newOp = arith::UIToFPOp::create(rewriter, loc, f32_ty, b.i32_val(totalNumThreads));
     rewriter.replaceOp(op, newOp);
+    // llvm::outs() << mod << "\n";
     return success();
   }
 

@@ -1891,14 +1891,13 @@ void init_triton_ir(py::module &&m) {
 
       TritonOpBuilderBinding.def(
           customOpName,
-          [customOpName](TritonOpBuilder &self, Value &lhs,
-                         Value &rhs) -> Value {
+          [customOpName](TritonOpBuilder &self, Value &lhs) -> Value {
             std::string filename =
                 mlir::triton::tools::getStrEnv("TRITON_PASS_PLUGIN_PATH");
             TritonPlugin TP(filename);
 
             ::mlir::Value dst;
-            std::vector<::mlir::Value> values = {dst, lhs, rhs};
+            std::vector<::mlir::Value> values = {dst, lhs};
             auto result = TP.addCustomOp(customOpName, self, values);
             if (!result)
               throw TP.err2exp(result.takeError());
