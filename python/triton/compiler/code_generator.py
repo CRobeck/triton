@@ -1606,15 +1606,24 @@ class CodeGenerator(ast.NodeVisitor):
 
         return ret
 
-    from ..experimental.gluon import language as ttgl
-    statically_implemented_functions: Dict[object, Callable[[ast.Call], Any]] = {
-        language.core.static_assert: execute_static_assert,
-        language.core.static_print: static_executor(print),
-        ttgl.static_assert: execute_static_assert,
-        ttgl.static_print: static_executor(print),
-        int: static_executor(int),
-        len: static_executor(len),
-    }
+    # Triton Nano: Make gluon import conditional to avoid loading experimental modules
+    try:
+        from ..experimental.gluon import language as ttgl
+        statically_implemented_functions: Dict[object, Callable[[ast.Call], Any]] = {
+            language.core.static_assert: execute_static_assert,
+            language.core.static_print: static_executor(print),
+            ttgl.static_assert: execute_static_assert,
+            ttgl.static_print: static_executor(print),
+            int: static_executor(int),
+            len: static_executor(len),
+        }
+    except ImportError:
+        statically_implemented_functions: Dict[object, Callable[[ast.Call], Any]] = {
+            language.core.static_assert: execute_static_assert,
+            language.core.static_print: static_executor(print),
+            int: static_executor(int),
+            len: static_executor(len),
+        }
 
 
 def ast_to_ttir(fn, src, context, options, codegen_fns, module_map, module=None):
