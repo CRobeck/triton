@@ -233,90 +233,34 @@ class CUDABackend(BaseBackend):
 
     @staticmethod
     def make_ttir(mod, metadata, opt, capability):
+        # Triton Nano: Minimal TTIR passes for vector-add
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
         passes.common.add_inliner(pm)
-        passes.ttir.add_rewrite_tensor_pointer(pm)
-        if capability // 10 < 9:
-            passes.ttir.add_rewrite_tensor_descriptor_to_pointer(pm)
         passes.common.add_canonicalizer(pm)
-        passes.ttir.add_combine(pm)
-        passes.ttir.add_reorder_broadcast(pm)
         passes.common.add_cse(pm)
         passes.common.add_symbol_dce(pm)
-        passes.ttir.add_loop_unroll(pm)
         pm.run(mod, 'make_ttir')
         return mod
 
     @staticmethod
     def make_ttgir(mod, metadata, opt, capability):
+        # Triton Nano: Minimal TTGIR passes for vector-add
         # Set maxnreg on all kernels, if it was provided.
         if opt.maxnreg is not None:
             mod.set_attr("ttg.maxnreg", ir.builder(mod.context).get_int32_attr(opt.maxnreg))
 
         pm = ir.pass_manager(mod.context)
-        dump_enabled = pm.enable_debug()
-        emuTF32 = (capability // 10 >= 8)
+        pm.enable_debug()
+        # Convert to GPU IR
         passes.ttir.add_convert_to_ttgpuir(pm, f"cuda:{capability}", opt.num_warps, 32, opt.num_ctas)
-        # optimize TTGIR
+        # Essential optimization passes
         passes.ttgpuir.add_coalesce(pm)
-        passes.ttgpuir.add_f32_dot_tc(pm, emuTF32)
-        # TODO(Qingyi): Move PlanCTAPass to the front of CoalescePass
-        nvidia.passes.ttnvgpuir.add_plan_cta(pm)
         passes.ttgpuir.add_remove_layout_conversions(pm)
-        passes.ttgpuir.add_optimize_thread_locality(pm)
-        passes.ttgpuir.add_accelerate_matmul(pm)
-        passes.ttgpuir.add_remove_layout_conversions(pm)
-        passes.ttgpuir.add_optimize_dot_operands(pm, capability >= 80)
-        nvidia.passes.ttnvgpuir.add_optimize_descriptor_encoding(pm)
-        passes.ttir.add_loop_aware_cse(pm)
-        if capability // 10 in [8, 9]:
-            passes.ttgpuir.add_fuse_nested_loops(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.ttir.add_triton_licm(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.ttgpuir.add_combine_tensor_select_and_if(pm)
-            nvidia.passes.hopper.add_hopper_warpspec(pm, opt.num_stages, dump_enabled)
-            passes.ttgpuir.add_assign_latencies(pm, opt.num_stages)
-            passes.ttgpuir.add_schedule_loops(pm)
-            passes.ttgpuir.add_pipeline(pm, opt.num_stages, dump_enabled)
-        elif capability // 10 >= 10:
-            passes.ttgpuir.add_fuse_nested_loops(pm)
-            passes.common.add_canonicalizer(pm)
-            passes.ttir.add_triton_licm(pm)
-            passes.ttgpuir.add_optimize_accumulator_init(pm)
-            passes.ttgpuir.add_hoist_tmem_alloc(pm, False)
-            nvidia.passes.ttnvgpuir.add_promote_lhs_to_tmem(pm)
-            passes.ttgpuir.add_assign_latencies(pm, opt.num_stages)
-            passes.ttgpuir.add_schedule_loops(pm)
-            passes.ttgpuir.add_warp_specialize(pm, opt.num_stages)
-            passes.ttgpuir.add_pipeline(pm, opt.num_stages, dump_enabled)
-            passes.ttgpuir.add_optimize_partition_warps(pm)
-            passes.ttgpuir.add_combine_tensor_select_and_if(pm)
-            # hoist again and allow hoisting out of if statements
-            passes.ttgpuir.add_hoist_tmem_alloc(pm, True)
-            nvidia.passes.ttnvgpuir.add_remove_tmem_tokens(pm)
-        else:
-            passes.ttir.add_triton_licm(pm)
-        passes.common.add_canonicalizer(pm)
-        passes.ttir.add_loop_aware_cse(pm)
-        passes.ttgpuir.add_prefetch(pm)
-        passes.ttgpuir.add_optimize_dot_operands(pm, capability >= 80)
-        passes.ttgpuir.add_coalesce_async_copy(pm)
-        nvidia.passes.ttnvgpuir.add_optimize_tmem_layouts(pm)
-        if capability // 10 >= 9:
-            nvidia.passes.ttnvgpuir.add_tma_lowering(pm)
-        passes.ttgpuir.add_remove_layout_conversions(pm)
-        nvidia.passes.ttnvgpuir.add_interleave_tmem(pm)
         passes.ttgpuir.add_reduce_data_duplication(pm)
-        passes.ttgpuir.add_reorder_instructions(pm)
-        passes.ttir.add_loop_aware_cse(pm)
-        passes.common.add_symbol_dce(pm)
-        nvidia.passes.ttnvgpuir.add_fence_insertion(pm, capability)
-        nvidia.passes.ttnvgpuir.add_lower_mma(pm)
-        passes.common.add_sccp(pm)
-        passes.common.add_cse(pm)
         passes.common.add_canonicalizer(pm)
+        passes.common.add_cse(pm)
+        passes.common.add_symbol_dce(pm)
 
         pm.run(mod, 'make_ttgir')
         metadata["tensordesc_meta"] = mod.get_tensordesc_metadata()
@@ -342,6 +286,7 @@ class CUDABackend(BaseBackend):
         return mod
 
     def make_llir(self, src, metadata, options, capability):
+        # Triton Nano: Minimal LLIR passes for vector-add
         ptx_version = get_ptx_version_from_options(options, self.target.arch)
 
         mod = src
@@ -349,63 +294,22 @@ class CUDABackend(BaseBackend):
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
 
-        passes.ttgpuir.add_combine_tensor_select_and_if(pm)
-        passes.ttgpuir.add_allocate_warp_groups(pm)
         passes.convert.add_scf_to_cf(pm)
-        passes.gluon.add_inliner(pm)
         nvidia.passes.ttgpuir.add_allocate_shared_memory_nv(pm, capability, ptx_version)
-        nvidia.passes.ttnvgpuir.add_allocate_tensor_memory(pm)
-        nvidia.passes.ttnvgpuir.add_check_matmul_two_cta(pm)
-        if "consan" in options.instrumentation_mode:
-            # Call ConcurrencySanitizerPass here, before allocating global scratch memory but after allocating tensor and shared
-            passes.ttgpuir.add_concurrency_sanitizer(pm)
-        passes.ttgpuir.add_allocate_global_scratch_memory(pm)
-        nvidia.passes.ttnvgpuir.add_proxy_fence_insertion(pm, capability)
-        # instrumentation point here so we can override IRs above (e.g., ttir and ttgir)
-        if CUDABackend.instrumentation:
-            CUDABackend.instrumentation.patch("ttgpuir_to_llvmir", pm, mod.context)
         nvidia.passes.ttgpuir.add_to_llvmir(pm, capability, ptx_version)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
         nvidia.passes.ttnvgpuir.add_nvgpu_to_llvm(pm)
-        nvidia.passes.ttnvgpuir.add_warp_specialize_to_llvm(pm)
         passes.common.add_canonicalizer(pm)
         passes.common.add_cse(pm)
         passes.common.add_symbol_dce(pm)
         passes.convert.add_nvvm_to_llvm(pm)
 
-        if not knobs.compilation.disable_line_info and not knobs.compilation.dump_ir_extract_di_local_variables:
-            passes.llvmir.add_di_scope(pm)
-
-        if CUDABackend.instrumentation:
-            CUDABackend.instrumentation.patch("llvmir_to_llvm", pm, mod.context)
-
         pm.run(mod, 'make_llir')
-
-        if knobs.compilation.dump_ir_extract_di_local_variables:
-            # comments below on why separate it
-            if not knobs.compilation.disable_line_info:
-                pm = ir.pass_manager(mod.context)
-                pm.enable_debug()
-                passes.llvmir.add_di_scope(pm)
-                pm.run(mod, 'make_llir.disable_line_info')
-
-            # insert dbg intrinsic with several DI Attribute including source
-            # var name and type info note: unknown reason for now, but this
-            # pass and add_di_scope has to be run separately, otherwise if we
-            # put them into previous pipline, it trigger a segmentfault without
-            # any error message; could be due to a bug in mlir or pybind11
-            pm = ir.pass_manager(mod.context)
-            pm.enable_debug()
-            passes.llvmir.add_di_local_variable(pm)
-            pm.run(mod, 'make_llir.dump_ir_extract_di_local_variables')
 
         # LLVM-IR (MLIR) -> LLVM-IR (LLVM)
         llvm.init_targets()
         context = llvm.context()
-        if knobs.compilation.enable_asan:
-            raise RuntimeError(
-                "Address Sanitizer Error: Address sanitizer is currently only supported on the AMD backend")
         llvm_mod = llvm.to_module(mod, context)
         proc = sm_arch_from_capability(capability)
         features = get_features(options, self.target.arch)
@@ -422,14 +326,9 @@ class CUDABackend(BaseBackend):
         llvm.optimize_module(llvm_mod, llvm.OPTIMIZE_O3)
 
         # Get some metadata
-        # warp-specialization mutates num_warps
-        total_num_warps = src.get_int_attr("ttg.total-num-warps")
-        if total_num_warps is not None:
-            metadata["num_warps"] = total_num_warps
         metadata["shared"] = src.get_int_attr("ttg.shared")
-        metadata["tmem_size"] = src.get_int_attr("ttg.tensor_memory_size")
-        metadata["global_scratch_size"] = src.get_int_attr("ttg.global_scratch_memory_size")
-        metadata["global_scratch_align"] = src.get_int_attr("ttg.global_scratch_memory_alignment")
+        metadata["global_scratch_size"] = src.get_int_attr("ttg.global_scratch_memory_size") or 0
+        metadata["global_scratch_align"] = src.get_int_attr("ttg.global_scratch_memory_alignment") or 1
         metadata["profile_scratch_size"] = src.get_int_attr("ttg.profile_scratch_memory_size") or 0
         metadata["profile_scratch_align"] = src.get_int_attr("ttg.profile_scratch_memory_alignment") or 1
         ret = str(llvm_mod)
