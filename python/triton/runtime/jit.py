@@ -1,16 +1,14 @@
 from __future__ import annotations, division
 import ast
-import copy
 import hashlib
 import inspect
-import itertools
 import threading
 import re
 import textwrap
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Callable, Generic, Iterable, Optional, TypeVar, overload, Dict, Any, Tuple
+from typing import Callable, Generic, Iterable, Optional, TypeVar, overload
 
 from triton.backends import BaseBackend
 from types import ModuleType
@@ -22,248 +20,8 @@ from .cache import get_cache_key
 from triton._C.libtriton import get_cache_invalidating_env_vars, native_specialize_impl, ir
 
 TRITON_MODULE = "triton.language"
-GLUON_MODULE = "triton.experimental.gluon.language"
 
 T = TypeVar("T")
-
-# -----------------------------------------------------------------------------
-# Dependencies Finder
-# -----------------------------------------------------------------------------
-
-
-class DependenciesFinder(ast.NodeVisitor):
-    """
-    This AST visitor is used to find dependencies of a JITFunction. This can
-    be used to invalidate a JITFunction's hash when its source code -- or
-    that of its dependencies -- changes.
-
-    This visitor also keeps track of the global variables touched by the
-    JITFunction.  When we launch the kernel, we check that these have the same
-    values as they did when we ran this visitor.  If not, we raise an error (or
-    otherwise we could recompile).
-    """
-
-    def __init__(self, name, globals, nonlocals, src) -> None:
-        super().__init__()
-        self.name = name
-        self.hasher = hashlib.sha256(src.encode("utf-8"))
-
-        # This function's __globals__ dict.
-        self.globals = globals
-        self.nonlocals = nonlocals
-
-        # Python builtins that can be accessed from Triton kernels.
-        self.supported_python_builtins = {
-            'float',
-            'getattr',
-            'int',
-            'isinstance',
-            'len',
-            'list',
-            'max',
-            'min',
-            'print',
-            'range',
-        }
-        self.supported_modules = {
-            GLUON_MODULE,
-            TRITON_MODULE,
-            "copy",
-            "math",
-        }
-
-        # used_global_vals tells us which global variables are used by this
-        # function and all those it transitively calls, plus the values of those
-        # variables when each function was initially run.  (That is, if A calls
-        # C, and B calls C, then the values for C in used_global_vals will be
-        # from the first time C was run, either by A or B.)
-        #
-        # Each function may have a different __globals__ dict, so the global
-        # variable `foo` may actually have a different value in the different
-        # functions.  Thus this map is actually
-        #  (var_name, id(__globals__)) -> (var_value, __globals__).
-        self.used_global_vals: Dict[Tuple[str, int], Tuple[Any, Dict[str, Any]]] = {}
-
-        self.visiting_arg_default_value = False
-
-    @property
-    def ret(self):
-        return self.hasher.hexdigest()
-
-    def _is_triton_builtin(self, node, func):
-        if inspect.isbuiltin(node.func):
-            return True
-        module = getattr(func, "__module__", "")
-        return module.startswith(TRITON_MODULE)
-
-    def _update_hash(self, func):
-        assert isinstance(func, JITCallable)
-        # Merge our used_global_vals with those of the called function,
-        # after checking that all overlapping values are consistent.
-        for k in self.used_global_vals.keys() & func.used_global_vals.keys():
-            var_name, _ = k
-            v1, _ = self.used_global_vals[k]
-            v2, _ = func.used_global_vals[k]
-            if v1 != v2:
-                raise RuntimeError(
-                    f"Global variable {var_name} has value {v1} when compiling {self.name}, but inner kernel {func.__name__} has conflicting value {v2} from when it was first compiled.  This is not allowed."
-                )
-        self.used_global_vals.update(func.used_global_vals)
-        # update hash
-        func_key = func.cache_key
-        func_key += str(getattr(func, "noinline", False))
-        self.hasher.update(func_key.encode("utf-8"))
-
-    def record_reference(self, val, var_dict=None, name=None):
-        from ..language.core import constexpr
-        # Only keep track of "interesting" global variables, that non-evil users
-        # might change.  Don't consider functions, modules, builtins, etc.  This
-        # helps keep the list of vars we have to check small.
-        if val is None or type(val) is ModuleType:
-            return
-
-        if getattr(val, "__triton_aggregate__", False):
-            for attr in val.hash_attrs:
-                self.record_reference(attr)
-            return
-
-        if getattr(val, "__triton_builtin__", False):
-            return
-
-        # Stubs that aren't real functions
-        if getattr(val, "__module__", "") == "triton.language.extra.libdevice":
-            return
-
-        if isinstance(val, JITCallable):
-            self._update_hash(val)
-            return
-
-        if callable(val) and not isinstance(val, type) and not isinstance(val, constexpr):
-            raise RuntimeError(f"Unsupported function referenced: {val}")
-
-        # Python default arguments are resolved only once, when the
-        # function is defined.  So if you do `foo(a=A)` and the value of
-        # A changes, foo will still use the old value of A.
-        # It would be pretty evil if someone did `import x` and then
-        # `x = blah`.
-        if self.visiting_arg_default_value:
-            return
-
-        if var_dict is not None:
-            self.used_global_vals[(name, id(var_dict))] = (copy.deepcopy(val), var_dict)
-        return
-
-    def visit_Name(self, node):
-        if type(node.ctx) is ast.Store:
-            return node.id
-
-        if node.id in self.local_names:
-            # The global name is hidden by the local name.
-            return None
-
-        def name_lookup(name):
-            val = self.globals.get(name, None)
-            if val is not None:
-                return val, self.globals
-            val = self.nonlocals.get(name, None)
-            if val is not None:
-                return val, self.nonlocals
-            return None, None
-
-        val, var_dict = name_lookup(node.id)
-        if node.id in self.supported_python_builtins:
-            return val
-
-        self.record_reference(val, var_dict, node.id)
-        return val
-
-    def visit_Tuple(self, node):
-        # We need to explicitly return the tuple values so that visit_Assign can
-        # access them in the case of `a, b = ...`.
-        return [self.visit(elt) for elt in node.elts]
-
-    def visit_Attribute(self, node):
-        lhs = self.visit(node.value)
-        while isinstance(lhs, ast.Attribute):
-            lhs = self.visit(lhs.value)
-        lhs_name = getattr(lhs, "__name__", "")
-        if lhs is None or lhs_name in self.supported_modules:
-            return None
-        ret = getattr(lhs, node.attr)
-        self.record_reference(ret)
-        return ret
-
-    def visit_FunctionDef(self, node):
-        # Save the local name, which may hide the global name.
-        self.local_names = {arg.arg for arg in node.args.args}
-        self.generic_visit(node)
-
-    def visit_arguments(self, node):
-        # The purpose of this function is to visit everything in `arguments`
-        # just like `generic_visit`, except when we're visiting default values
-        # (i.e. the `foo` part of `def fn(x = foo)`), we set
-        # self.visiting_arg_default_value = True.  This allows visit_Name to be
-        # aware that we're inside function default values, which have special
-        # semantics.
-
-        # According to the AST docs, the arguments node has the following structure.
-        #
-        # arguments = (arg* posonlyargs, arg* args, arg? vararg, arg* kwonlyargs,
-        #              expr* kw_defaults, arg? kwarg, expr* defaults)
-        def visit_defaults(defaults):
-            try:
-                assert not self.visiting_arg_default_value
-                self.visiting_arg_default_value = True
-                for expr in defaults:
-                    if expr is not None:
-                        self.visit(expr)
-            finally:
-                self.visiting_arg_default_value = False
-
-        for arg in itertools.chain(node.posonlyargs, node.args, [node.vararg] if node.vararg else [], node.kwonlyargs):
-            self.visit(arg)
-
-        visit_defaults(node.kw_defaults)
-
-        if node.kwarg is not None:
-            self.visit(node.kwarg)
-
-        visit_defaults(node.defaults)
-
-    def visitAssnTarget(self, node):
-        # Target is either a single string, or a list of strings (if the assn
-        # target is a tuple).
-        target = self.visit(node)
-        if isinstance(target, list):
-            self.local_names |= set(target)
-        else:
-            self.local_names.add(target)
-
-    def visit_Assign(self, node):
-        if len(node.targets) != 1:
-            # TODO(jlebar): I don't actually know how to hit this.  You don't
-            # get it from `a, b = ...` -- in that case, node.targets is a single
-            # Tuple, and in fact we *do* need to handle that case if we want
-            # existing code to work.
-            raise TypeError("Simultaneous multiple assignment is not supported.")
-
-        self.visitAssnTarget(node.targets[0])
-
-        # This will re-visit the target, but that's OK.
-        self.generic_visit(node)
-
-    def visit_AnnAssign(self, node):
-        self.visitAssnTarget(node.target)
-
-        # This will re-visit the target, but that's OK.
-        self.generic_visit(node)
-
-    def visit_For(self, node):
-        self.visitAssnTarget(node.target)
-
-        # This will re-visit the target, but that's fine.
-        self.generic_visit(node)
-
 
 # -----------------------------------------------------------------------------
 # JITFunction
@@ -471,17 +229,6 @@ class JITCallable:
         self._src = src
         self.hash = None
 
-        # Map of global variables used by the function and any functions it
-        # transitively calls, plus their values.  The values are collected when
-        # the function is first compiled.  Then every time we run the function,
-        # we check that the values of the globals match what's expected,
-        # otherwise we raise an error.
-        #
-        # Different functions can have different __globals__ maps, so the map
-        # key is actually (var name, id(__globals__)), and the map value is
-        # (value, __globals__).
-        self.used_global_vals: Dict[Tuple[str, int], Tuple[Any, Dict[str, Any]]] = {}
-
         # reuse docs of wrapped function
         self.__doc__ = fn.__doc__
         self.__name__ = fn.__name__
@@ -498,25 +245,11 @@ class JITCallable:
 
     @property
     def cache_key(self) -> str:
-        # TODO : hash should be attribute of `self`
+        # Triton Nano: Simplified hash using just source code
         with self._hash_lock:
             if self.hash is not None:
                 return self.hash
-            # Set a placeholder hash to break recursion in case the function
-            # transitively calls itself. The full hash is set after.
-            self.hash = f"recursion:{self._fn_name}"
-            nonlocals = inspect.getclosurevars(self.fn).nonlocals
-            dependencies_finder = DependenciesFinder(name=self._fn_name, globals=self.__globals__, nonlocals=nonlocals,
-                                                     src=self.src)
-            dependencies_finder.visit(self.parse())
-            self.hash = dependencies_finder.ret + str(self.starting_line_number)
-            self.used_global_vals = dict(sorted(dependencies_finder.used_global_vals.items()))
-
-            from triton.language.core import constexpr
-            self.hash += str([(name, val)
-                              for (name, _), (val, _) in self.used_global_vals.items()
-                              if isinstance(val, constexpr)])
-            self.hash = hashlib.sha256(self.hash.encode("utf-8")).hexdigest()
+            self.hash = hashlib.sha256((self._src + str(self.starting_line_number)).encode("utf-8")).hexdigest()
         return self.hash
 
     def __hash__(self):
@@ -740,13 +473,6 @@ class JITFunction(JITCallable, KernelInterface[T]):
             if kernel is None:
                 return None
 
-        # Check that used global values have not changed.
-        not_present = object()
-        for (name, _), (val, globals_dict) in self.used_global_vals.items():
-            if (newVal := globals_dict.get(name, not_present)) != val:
-                raise RuntimeError(
-                    f"Global variable {name} has changed since we compiled this kernel, from {val} to {newVal}")
-
         if not warmup:
             # canonicalize grid
             assert grid is not None
@@ -896,22 +622,16 @@ def jit(
 
     def decorator(fn: T) -> JITFunction[T]:
         assert callable(fn)
-        if knobs.runtime.interpret:
-            from .interpreter import InterpretedFunction
-            return InterpretedFunction(fn, version=version, do_not_specialize=do_not_specialize,
-                                       do_not_specialize_on_alignment=do_not_specialize_on_alignment, debug=debug,
-                                       noinline=noinline, repr=repr, launch_metadata=launch_metadata)
-        else:
-            return JITFunction(
-                fn,
-                version=version,
-                do_not_specialize=do_not_specialize,
-                do_not_specialize_on_alignment=do_not_specialize_on_alignment,
-                debug=debug,
-                noinline=noinline,
-                repr=repr,
-                launch_metadata=launch_metadata,
-            )
+        return JITFunction(
+            fn,
+            version=version,
+            do_not_specialize=do_not_specialize,
+            do_not_specialize_on_alignment=do_not_specialize_on_alignment,
+            debug=debug,
+            noinline=noinline,
+            repr=repr,
+            launch_metadata=launch_metadata,
+        )
 
     if fn is not None:
         return decorator(fn)
@@ -957,57 +677,6 @@ class MockTensor:
     def ptr_range():
         return 0  # optimistically assumes 32 bit pointer range
 
-
-class TensorWrapper:
-
-    def __init__(self, base, dtype):
-        self.dtype = dtype
-        self.base = base
-        self.data = base.data
-        self.device = base.device
-        self.shape = self.base.shape
-
-    def data_ptr(self):
-        return self.base.data_ptr()
-
-    def stride(self, *args):
-        return self.base.stride(*args)
-
-    def __str__(self) -> str:
-        return f"TensorWrapper[{self.dtype}]({self.base})"
-
-    def element_size(self):
-        return self.base.element_size()
-
-    def cpu(self):
-        return TensorWrapper(self.base.cpu(), self.dtype)
-
-    def copy_(self, other):
-        self.base.copy_(other.base)
-
-    def clone(self):
-        return TensorWrapper(self.base.clone(), self.dtype)
-
-    def to(self, device):
-        return TensorWrapper(self.base.to(device), self.dtype)
-
-    def new_empty(self, sizes):
-        return TensorWrapper(self.base.new_empty(sizes), self.dtype)
-
-
-def reinterpret(tensor, dtype):
-    if isinstance(tensor, TensorWrapper):
-        if dtype == tensor.base.dtype:
-            # Reinterpreting to the original interpretation; return the base.
-            return tensor.base
-        else:
-            # Reinterpreting a wrapped tensor to a different type.
-            return TensorWrapper(tensor.base, dtype)
-    elif hasattr(tensor, "data_ptr"):
-        # A new wrapper is needed around an unwrapped tensor.
-        return TensorWrapper(tensor, dtype)
-    else:
-        raise TypeError(f"Cannot reinterpret a {type(tensor)}.")
 
 
 def get_jit_fn_file_line(fn):
