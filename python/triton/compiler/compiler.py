@@ -6,10 +6,15 @@ from ..backends import backends
 from ..backends.compiler import Language
 from ..backends.compiler import BaseBackend, GPUTarget
 from .. import __version__, knobs
-from ..runtime.autotuner import OutOfResources
+from ..runtime.errors import OutOfResources
 from ..runtime.cache import get_cache_manager, get_dump_manager, get_override_manager, get_cache_key
 from ..runtime.driver import driver
-from ..tools.disasm import get_sass
+# Triton Nano: Make tools import conditional
+try:
+    from ..tools.disasm import get_sass
+except ImportError:
+    def get_sass(cubin):
+        return ""
 from pathlib import Path
 import re
 import functools
