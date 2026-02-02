@@ -803,59 +803,6 @@ class JITFunction(JITCallable, KernelInterface[T]):
         # Hooks that will be called prior to executing "run"
         self.pre_run_hooks = []
 
-    def preload(self, specialization_data):
-        import json
-        import triton.language as tl
-        device = driver.active.get_current_device()
-        deserialized_obj = json.loads(specialization_data)
-        if deserialized_obj['name'] != self._fn_name:
-            raise RuntimeError(
-                f"Specialization data is for {deserialized_obj['name']} but trying to preload for {self._fn_name}")
-        constant_keys = map(tuple, deserialized_obj['constant_keys'])
-        constant_vals = deserialized_obj['constant_vals']
-        _, _, target, backend, _ = self.device_caches[device]
-        deserialized_target = deserialized_obj['target']
-        # TODO: we could support loading a kernel signature serialized on a different target however
-        # currently options are target specific so we would need to change that.
-        if target.__dict__ != deserialized_target:
-            raise RuntimeError(f"Specialization data is for {deserialized_target} but trying to preload for {target}")
-
-        def _decode_constant(value):
-            if tl.dtype.is_dtype(value):
-                return tl.dtype(value)
-            if isinstance(value, dict):
-                if 'constexpr' in value:
-                    return tl.constexpr(value['constexpr'])
-                if 'jit_function' in value:
-                    jf_key = value['jit_function']
-                    if jf_key in _triton_jit_function_registry:
-                        return _triton_jit_function_registry[jf_key]
-                    raise RuntimeError(f"Unable to resolve JITFunction {jf_key} for preload")
-            return value
-
-        constexprs = {key: _decode_constant(value) for key, value in zip(constant_keys, constant_vals)}
-        attrs_keys = map(tuple, deserialized_obj['attrs_keys'])
-        attrs_vals = deserialized_obj['attrs_vals']
-        attrs = dict(zip(attrs_keys, attrs_vals))
-        # JSON serializes tuples as lists, so they need to be converted back;
-        # This can be done unconditionally, since lists are not accepted in Triton kernel signatures.
-        signature = {key: convert_to_tuple_if_list(value) for key, value in deserialized_obj['signature'].items()}
-        options = {
-            key: tuple(value) if isinstance(value, list) else value
-            for key, value in deserialized_obj['options'].items()
-        }
-        key = deserialized_obj['key']
-        options = backend.parse_options(options)
-        return self._do_compile(
-            key,
-            signature,
-            device,
-            constexprs,
-            options,
-            attrs,
-            warmup=True,
-        )
-
     def _do_compile(self, key, signature, device, constexprs, options, attrs, warmup):
         kernel_cache, _, target, backend, _ = self.device_caches[device]
 
