@@ -22,8 +22,6 @@ from .core import (
     program_id,
     store,
     tensor,
-    tuple,
-    tuple_type,
     uint16,
     uint32,
     uint64,
