@@ -213,18 +213,16 @@ class CUDABackend(BaseBackend):
         )
 
     def get_codegen_implementation(self, options):
-        import triton.language.extra.cuda as cuda
-        capability = int(self._parse_arch(options.arch))
+        # Triton Nano: Simplified - no float8 conversion needed for vector-add
         codegen_fns = {
-            "convert_custom_types":
-            cuda.convert_custom_float8_sm80 if capability >= 80 else cuda.convert_custom_float8_sm70, "min_dot_size":
-            min_dot_size(self.target)
+            "convert_custom_types": lambda *args, **kwargs: None,
+            "min_dot_size": min_dot_size(self.target)
         }
         return codegen_fns
 
     def get_module_map(self) -> Dict[str, ModuleType]:
-        from triton.language.extra.cuda import libdevice
-        return {"triton.language.extra.libdevice": libdevice}
+        # Triton Nano: No extra modules needed
+        return {}
 
     def load_dialects(self, ctx):
         nvidia.load_dialects(ctx)

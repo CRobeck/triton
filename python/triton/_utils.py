@@ -24,8 +24,8 @@ def set_iterable_path(iterable: IterableType, path: tuple[int, ...], val: Any):
 
 
 def is_iterable(x):
-    from .language import core
-    return isinstance(x, (list, tuple, core.tuple, core.tuple_type))
+    # Triton Nano: Simplified - no custom tuple types
+    return isinstance(x, (list, tuple))
 
 
 def apply_with_path(value: Any, fn: Callable[[ObjPath, Any], None], _path=None) -> None:

@@ -343,11 +343,7 @@ class CodeGenerator(ast.NodeVisitor):
         _.__name__: _
         for _ in (len, list, range, float, int, isinstance, getattr, hasattr)
     }
-    builtin_namespace.update((
-        ('print', language.core.device_print),
-        ('min', language.core.builtin_min),
-        ('max', language.core.builtin_max),
-    ))
+    # Triton Nano: Removed print/min/max builtins not needed for vector-add
 
     def _unsupported(self, node, message):
         return UnsupportedLanguageConstruct(self.jit_fn.src, node, message)

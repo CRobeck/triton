@@ -349,6 +349,52 @@ class constexpr(base_value):
 CONSTEXPR_0 = constexpr(0)
 
 
+# Triton Nano: Minimal tuple class for code_generator compatibility
+class tuple_type(base_type):
+    """Stub tuple_type for compatibility."""
+    pass
+
+
+class tuple(base_value):
+    """Minimal tuple class for code_generator compatibility."""
+
+    def __init__(self, values, type=None):
+        self._values = list(values)
+        self._type = type
+
+    def __iter__(self):
+        return iter(self._values)
+
+    def __len__(self):
+        return len(self._values)
+
+    def __getitem__(self, idx):
+        return self._values[idx]
+
+    def _setitem(self, idx, val):
+        """Set item at index (for mutable tuple semantics)."""
+        self._values[idx] = val
+
+    def __eq__(self, other):
+        if isinstance(other, tuple):
+            return self._values == other._values
+        if isinstance(other, (list, builtins.tuple)):
+            return self._values == list(other)
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    @property
+    def type(self):
+        return self._type
+
+
+def _tuple_create(original, values):
+    """Helper to preserve tuple type when unwrapping."""
+    return builtins.tuple(values)
+
+
 def _unwrap_if_constexpr(o):
     if isinstance(o, list):
         return [_unwrap_if_constexpr(x) for x in o]
@@ -1217,6 +1263,7 @@ class tensor(base_value):
 
 
 
+@builtin
 def program_id(axis, _semantic=None):
     """
     Returns the id of the current program instance along the given :code:`axis`.
