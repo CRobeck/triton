@@ -3,6 +3,7 @@
 #include "mlir/Dialect/UB/IR/UBOps.h"
 #include "mlir/Pass/Pass.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "triton/Conversion/TritonToTritonGPU/Passes.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Utility.h"
@@ -809,30 +810,24 @@ public:
 
     MLIRContext *context = &getContext();
     ModuleOp mod = getOperation();
-    // type converter
-    TritonGPUTypeConverter typeConverter(context, numWarps, threadsPerWarp,
-                                         numCTAs, enableSourceRemat);
-    TritonGPUConversionTarget target(*context, typeConverter);
-    // rewrite patterns
-    RewritePatternSet patterns(context);
-    // add rules
-    populateArithPatternsAndLegality(typeConverter, patterns, target);
-    populateMathPatternsAndLegality(typeConverter, patterns, target);
-    populateTritonPatterns(typeConverter, patterns, numCTAs);
-    // TODO: can we use
-    //    mlir::scf::populateSCFStructurealTypeConversionsAndLegality(...) here?
-    populateSCFPatterns(typeConverter, patterns);
-    populateCFPatterns(typeConverter, patterns);
-    patterns.insert<GenericOpPattern<ub::PoisonOp>>(typeConverter, context);
 
-    Builder b(&getContext());
-    mod->setAttr(AttrNumWarpsName, b.getI32IntegerAttr(numWarps));
-    mod->setAttr(AttrNumThreadsPerWarp, b.getI32IntegerAttr(threadsPerWarp));
-    mod->setAttr(AttrNumCTAsName, b.getI32IntegerAttr(numCTAs));
-    mod->setAttr(AttrTargetName, b.getStringAttr(this->target.getValue()));
+    // Replace all tt.get_program_id ops with constant 0.
+    IRRewriter rewriter(context);
+    mod.walk([&](triton::GetProgramIdOp op) {
+      rewriter.setInsertionPoint(op);
+      Value zero = arith::ConstantIntOp::create(rewriter, op.getLoc(),
+                                                rewriter.getI32Type(), 0);
+      op.replaceAllUsesWith(zero);
+      rewriter.eraseOp(op);
+    });
 
-    if (failed(applyPartialConversion(mod, target, std::move(patterns))))
-      return signalPassFailure();
+    // Fold constants through downstream arith ops.
+    RewritePatternSet foldPatterns(context);
+    (void)applyPatternsGreedily(mod, std::move(foldPatterns));
+
+    mod.print(llvm::errs());
+    llvm::errs() << "\n";
+    std::exit(EXIT_SUCCESS);
   }
 };
 
